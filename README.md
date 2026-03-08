@@ -17,19 +17,13 @@ Technologies utilisées:
 * Diagrammes UML (cas d’utilisation, classes, séquence)
 * Langage : Python / Java
 
-```mermaid
-classDiagram
-    class Patient {
-        +int id
-        +String nom
-        +getInfos()
-    }
-    class RendezVous {
-        +int id
-        +String date
-        +confirmer()
-        +annuler()
-    }
-    Patient "1" --> "0..*" RendezVous : prend
-```
+## Diagramme de Cas d'Utilisation
+![Cas d'Utilisation](docs/cas_utilisation.png)
+
+
+
+## Diagramme de Classes
+![Diagramme de Classes](docs/Diagramme_de_Classes.png)
+
+
 
