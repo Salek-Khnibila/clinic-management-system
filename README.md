@@ -10,3 +10,12 @@ Fonctionnalités:
 * Ajouter et gérer des patients
 * Gérer les médecins
 * Planifier et suivre les rendez-vous
+
+Technologies utilisées:
+
+* Programmation orientée objet (POO)
+* Diagrammes UML (cas d’utilisation, classes, séquence)
+* Langage : Python / Java
+
+![Diagramme de classes]
+
