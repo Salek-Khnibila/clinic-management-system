@@ -26,4 +26,5 @@ Technologies utilisées:
 ![Diagramme de Classes](docs/Diagramme_de_Classes.png)
 
 
-
+## Auteurs
+Projet réalisé par : KHNIBILA Salek & ESSALEHY Abderrahman
