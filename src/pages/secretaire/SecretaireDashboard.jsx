@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowRight, Calendar, Clock, ClipboardList, Stethoscope,
 import { C } from "../../constants/designTokens.js";
 import { MEDECINS_DB, PATIENTS_DB } from "../../constants/data.js";
 import { useApp } from "../../contexts/AppContext.jsx";
-import { Avatar, Card, SectionTitle, StatCard, StatusBadge } from "../../components/ui/Base.js";
+import { Avatar, Card, SectionTitle, StatCard, StatusBadge } from "../../components/ui/Base.jsx";
 
 export const SecretaireDashboard = ({ onNavigate }) => {
   const { rdvs } = useApp();

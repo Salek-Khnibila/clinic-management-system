@@ -20,7 +20,7 @@ import {
   Modal,
   SectionTitle,
   StatusBadge,
-} from "../../components/ui/Base.js";
+} from "../../components/ui/Base.jsx";
 
 export const SecretairePlanning = () => {
   const { rdvs, validateRdv, annulerRdv, reporterRdv, setArrivee } =

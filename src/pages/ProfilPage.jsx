@@ -3,7 +3,7 @@ import { LogOut } from "lucide-react";
 import { C } from "../constants/designTokens.js";
 import { ROLES } from "../constants/status.js";
 import { useAuth } from "../contexts/AuthContext.jsx";
-import { Btn, Card, SectionTitle } from "../components/ui/Base.js";
+import { Btn, Card, SectionTitle } from "../components/ui/Base.jsx";
 
 export const ProfilPage = ({ onLogout }) => {
   const { user } = useAuth();

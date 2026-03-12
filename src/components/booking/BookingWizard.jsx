@@ -8,7 +8,7 @@ import {
 import { C } from "../../constants/designTokens.js";
 import { CRN_A, CRN_M } from "../../constants/data.js";
 import { useApp } from "../../contexts/AppContext.jsx";
-import { Btn, Card, MiniCalendar } from "../ui/Base.js";
+import { Btn, Card, MiniCalendar } from "../ui/Base.jsx";
 
 export const BookingWizard = ({ med, onClose, onConfirm }) => {
   const { rdvs } = useApp();
