@@ -1,0 +1,1012 @@
+import { useState, createContext, useContext, useEffect, useCallback } from "react";
+import {
+  Search, MapPin, Star, Calendar, User, LogOut, ChevronRight,
+  Stethoscope, Users, ClipboardList, LayoutDashboard, CheckCircle,
+  XCircle, Clock, Filter, Phone, FileText, Activity, Heart, Eye,
+  Brain, Baby, Bone, Shield, RefreshCw, ChevronLeft,
+  UserCheck, AlertTriangle, X, ArrowRight, Home,
+  MessageSquare, Send, Bell, Inbox, PlusCircle, Mail
+} from "lucide-react";
+ 
+// ─────────────────────────────────────────────────────
+// DESIGN TOKENS
+// ─────────────────────────────────────────────────────
+const C = {
+  navy:    "#0D2137", teal:    "#06B6D4", tealDk:  "#0891B2", tealLt:  "#ECFEFF",
+  grad:    "linear-gradient(135deg, #0D2137 0%, #0E7490 50%, #06B6D4 100%)",
+  gradBtn: "linear-gradient(135deg, #0891B2, #06B6D4)",
+  white:   "#FFFFFF", bg:      "#F5F7FA", bgCard:  "#FFFFFF", border:  "#E8EDF4",
+  gray50:  "#F8FAFC", gray100: "#F1F5F9", gray400: "#94A3B8", gray500: "#64748B",
+  gray700: "#334155", gray900: "#0F172A",
+  green:   "#10B981", greenLt: "#D1FAE5", red:     "#EF4444", redLt:   "#FEE2E2",
+  amber:   "#F59E0B", amberLt: "#FEF3C7", purple:  "#8B5CF6", purpleLt:"#EDE9FE",
+  shadow:  "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.05)",
+  shadowH: "0 4px 20px rgba(6,182,212,0.15)",
+};
+ 
+const STATUS = {
+  "confirmé":   { bg:C.greenLt,  text:C.green,  Icon:CheckCircle, label:"Confirmé"   },
+  "en attente": { bg:C.amberLt,  text:C.amber,  Icon:Clock,       label:"En attente" },
+  "annulé":     { bg:C.redLt,    text:C.red,    Icon:XCircle,     label:"Annulé"     },
+  "reporté":    { bg:C.purpleLt, text:C.purple, Icon:RefreshCw,   label:"Reporté"    },
+};
+const ARRIVEE = {
+  "en salle":  { bg:"#D1FAE5", text:"#059669", label:"En salle"   },
+  "en attente":{ bg:C.amberLt, text:C.amber,   label:"En attente" },
+  "absent":    { bg:C.redLt,   text:C.red,     label:"Absent"     },
+};
+const ROLES = {
+  patient:    { label:"Patient",    color:C.teal,   bg:C.tealLt   },
+  medecin:    { label:"Médecin",    color:C.navy,   bg:"#E8EDF4"  },
+  secretaire: { label:"Secrétaire", color:C.purple, bg:C.purpleLt },
+};
+const SPEC_ICONS = {
+  "Cardiologie":Heart,"Pédiatrie":Baby,"Dermatologie":Shield,"Ophtalmologie":Eye,
+  "Neurologie":Brain,"Généraliste":Stethoscope,"Gynécologie":Activity,"Orthopédie":Bone,
+};
+ 
+// ─────────────────────────────────────────────────────
+// CONTEXTS
+// ─────────────────────────────────────────────────────
+const AppCtx  = createContext();
+const AuthCtx = createContext();
+const useApp  = () => useContext(AppCtx);
+const useAuth = () => useContext(AuthCtx);
+ 
+// ─────────────────────────────────────────────────────
+// STATIC DATA
+// ─────────────────────────────────────────────────────
+const USERS_DB = {
+  patient:    { role:"patient",    prenom:"Ahmed",  nom:"Alami",  email:"patient@clinique.ma",    password:"1234", telephone:"0612 345 678", groupeSanguin:"A+", patient_id:1 },
+  medecin:    { role:"medecin",    prenom:"Hassan", nom:"Karim",  email:"medecin@clinique.ma",    password:"1234", specialite:"Cardiologie", medecin_id:1 },
+  secretaire: { role:"secretaire", prenom:"Samira", nom:"Benali", email:"secretaire@clinique.ma", password:"1234", poste:"Secrétaire Médicale" },
+};
+const MEDECINS_DB = [
+  { id:1, prenom:"Hassan", nom:"Karim",    specialite:"Cardiologie",   ville:"Casablanca", note:4.8, avis:124, dispo:true,  tarif:"300 MAD", exp:"15 ans" },
+  { id:2, prenom:"Laila",  nom:"Mansouri", specialite:"Pédiatrie",     ville:"Rabat",      note:4.9, avis:89,  dispo:true,  tarif:"250 MAD", exp:"10 ans" },
+  { id:3, prenom:"Omar",   nom:"Bennani",  specialite:"Dermatologie",  ville:"Casablanca", note:4.7, avis:203, dispo:false, tarif:"200 MAD", exp:"8 ans"  },
+  { id:4, prenom:"Fatima", nom:"Zerouali", specialite:"Ophtalmologie", ville:"Marrakech",  note:4.6, avis:67,  dispo:true,  tarif:"280 MAD", exp:"12 ans" },
+  { id:5, prenom:"Youssef",nom:"Chraibi",  specialite:"Neurologie",    ville:"Fès",        note:4.9, avis:156, dispo:true,  tarif:"350 MAD", exp:"20 ans" },
+  { id:6, prenom:"Nadia",  nom:"Tazi",     specialite:"Gynécologie",   ville:"Rabat",      note:4.8, avis:98,  dispo:true,  tarif:"320 MAD", exp:"13 ans" },
+];
+const PATIENTS_DB = [
+  { id:1, prenom:"Ahmed",   nom:"Alami",   tel:"0612 345 678", email:"patient@clinique.ma", gs:"A+" },
+  { id:2, prenom:"Sara",    nom:"Benali",  tel:"0698 765 432", email:"sara@gmail.com",      gs:"B+" },
+  { id:3, prenom:"Youssef", nom:"Chraibi", tel:"0655 443 322", email:"youssef@gmail.com",   gs:"O+" },
+  { id:4, prenom:"Fatima",  nom:"Idrissi", tel:"0677 889 900", email:"fatima@gmail.com",    gs:"AB-"},
+];
+const INIT_RDV = [
+  { id:1, date:"2025-03-10", heure:"09:00", motif:"Douleur thoracique", statut:"confirmé",   patient_id:1, medecin_id:1, arrivee:"en salle"  },
+  { id:2, date:"2025-03-10", heure:"10:30", motif:"Suivi tension",      statut:"confirmé",   patient_id:2, medecin_id:1, arrivee:"en attente" },
+  { id:3, date:"2025-03-11", heure:"14:00", motif:"Fièvre enfant",      statut:"en attente", patient_id:3, medecin_id:2, arrivee:"absent"     },
+  { id:4, date:"2025-03-12", heure:"11:00", motif:"Contrôle annuel",    statut:"confirmé",   patient_id:4, medecin_id:1, arrivee:"en attente" },
+  { id:5, date:"2025-03-13", heure:"15:30", motif:"Bilan cardiaque",    statut:"annulé",     patient_id:1, medecin_id:1, arrivee:"absent"     },
+];
+const INIT_MSGS = [
+  { id:1, from:"secretaire", to_patient_id:1, sujet:"Rappel RDV", corps:"Bonjour Ahmed, nous vous rappelons votre rendez-vous demain à 09h00 avec Dr. Karim. Merci de confirmer votre présence.", date:"2025-03-09", lu:true  },
+  { id:2, from:"secretaire", to_patient_id:2, sujet:"RDV confirmé", corps:"Bonjour Sara, votre rendez-vous du 10 mars à 10h30 avec Dr. Karim est bien confirmé.", date:"2025-03-08", lu:false },
+];
+const SPECS  = ["Cardiologie","Pédiatrie","Dermatologie","Ophtalmologie","Neurologie","Généraliste","Gynécologie","Orthopédie"];
+const VILLES = ["Casablanca","Rabat","Marrakech","Fès","Tanger","Agadir"];
+const MONTHS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"];
+const DAYS   = ["Lu","Ma","Me","Je","Ve","Sa","Di"];
+const CRN_M  = ["08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30"];
+const CRN_A  = ["14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30"];
+const TEMPLATES = [
+  { label:"Rappel RDV",         sujet:"Rappel de votre rendez-vous",      corps:"Bonjour, nous vous rappelons votre prochain rendez-vous. Merci de confirmer votre présence ou de nous contacter en cas d'empêchement." },
+  { label:"RDV confirmé",       sujet:"Votre rendez-vous est confirmé",    corps:"Bonjour, votre rendez-vous a bien été confirmé. Nous vous attendons à l'heure indiquée. Veuillez apporter votre carnet de santé." },
+  { label:"RDV annulé",         sujet:"Annulation de votre rendez-vous",   corps:"Bonjour, nous avons le regret de vous informer que votre rendez-vous a été annulé. Veuillez nous contacter pour reprogrammer une consultation." },
+  { label:"Documents requis",   sujet:"Documents requis pour votre consultation", corps:"Bonjour, afin de préparer au mieux votre consultation, merci de nous apporter vos dernières analyses et ordonnances en cours." },
+];
+ 
+// ─────────────────────────────────────────────────────
+// HOOK
+// ─────────────────────────────────────────────────────
+const useMobile = () => {
+  const [m,setM]=useState(window.innerWidth<768);
+  useEffect(()=>{ const h=()=>setM(window.innerWidth<768); window.addEventListener("resize",h); return ()=>window.removeEventListener("resize",h); },[]);
+  return m;
+};
+ 
+// ─────────────────────────────────────────────────────
+// LOGO
+// ─────────────────────────────────────────────────────
+const Logo = ({ size=36, full=false }) => (
+  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
+      <defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#0D2137"/><stop offset="50%" stopColor="#0891B2"/><stop offset="100%" stopColor="#06B6D4"/></linearGradient></defs>
+      <rect x="14" y="2"  width="20" height="44" rx="6" fill="url(#lg1)" opacity="0.95"/>
+      <rect x="2"  y="14" width="44" height="20" rx="6" fill="url(#lg1)" opacity="0.95"/>
+      <circle cx="24" cy="24" r="4" fill="white" opacity="0.9"/>
+      <circle cx="12" cy="36" r="4" fill="#0D2137" opacity="0.85"/>
+      <circle cx="36" cy="12" r="5" fill="#06B6D4" opacity="0.85"/>
+      <line x1="24" y1="24" x2="12" y2="36" stroke="white" strokeWidth="1.5" opacity="0.6"/>
+      <line x1="24" y1="24" x2="36" y2="12" stroke="white" strokeWidth="1.5" opacity="0.6"/>
+    </svg>
+    {full&&(
+      <div>
+        <div style={{ fontFamily:"Georgia,serif", fontWeight:900, fontSize:15, letterSpacing:1.5, lineHeight:1 }}>
+          <span style={{ color:C.navy }}>GESTION </span><span style={{ color:C.tealDk }}>CLINIQUE</span>
+        </div>
+        <div style={{ fontSize:7.5, letterSpacing:2.5, color:C.gray400, textTransform:"uppercase", marginTop:2 }}>Simplifier · Optimiser · Améliorer</div>
+      </div>
+    )}
+  </div>
+);
+ 
+// ─────────────────────────────────────────────────────
+// BASE UI
+// ─────────────────────────────────────────────────────
+const Avatar = ({ name="", color=C.teal, size=40 }) => (
+  <div style={{ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${color}99,${color})`, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:size*0.34, flexShrink:0 }}>
+    {name.split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase()}
+  </div>
+);
+ 
+const StatusBadge = ({ statut }) => {
+  const s=STATUS[statut]||STATUS["en attente"];
+  return <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:s.bg, color:s.text, borderRadius:6, padding:"3px 9px", fontSize:11, fontWeight:700, whiteSpace:"nowrap" }}><s.Icon size={11} strokeWidth={2.5}/>{s.label}</span>;
+};
+ 
+const ArriveeBadge = ({ statut }) => {
+  const s=ARRIVEE[statut]||ARRIVEE["en attente"];
+  return <span style={{ background:s.bg, color:s.text, borderRadius:6, padding:"3px 9px", fontSize:11, fontWeight:700 }}>{s.label}</span>;
+};
+ 
+const Stars = ({ note }) => (
+  <div style={{ display:"flex", alignItems:"center", gap:2 }}>
+    {[1,2,3,4,5].map(i=><Star key={i} size={12} fill={i<=Math.round(note)?"#F59E0B":"none"} stroke={i<=Math.round(note)?"#F59E0B":C.gray400} strokeWidth={1.5}/>)}
+    <span style={{ fontSize:12, fontWeight:700, color:C.gray700, marginLeft:3 }}>{note}</span>
+  </div>
+);
+ 
+const Btn = ({ children, onClick, variant="primary", size="md", full=false, disabled=false, icon:Icon, style:sx={} }) => {
+  const pad={sm:"7px 13px",md:"10px 20px",lg:"13px 28px"}[size]||"10px 20px";
+  const fs={sm:12,md:13,lg:15}[size]||13;
+  const vs={
+    primary:{ background:C.gradBtn, color:"#fff", border:"none", boxShadow:`0 2px 8px ${C.teal}33` },
+    outline:{ background:"transparent", color:C.tealDk, border:`1.5px solid ${C.teal}` },
+    ghost:  { background:C.gray100, color:C.gray700, border:`1px solid ${C.border}` },
+    danger: { background:"linear-gradient(135deg,#DC2626,#EF4444)", color:"#fff", border:"none" },
+    success:{ background:"linear-gradient(135deg,#059669,#10B981)", color:"#fff", border:"none" },
+    purple: { background:"linear-gradient(135deg,#7C3AED,#8B5CF6)", color:"#fff", border:"none" },
+  };
+  return (
+    <button onClick={disabled?undefined:onClick} style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", gap:6, padding:pad, borderRadius:8, fontWeight:700, fontSize:fs, cursor:disabled?"not-allowed":"pointer", fontFamily:"inherit", opacity:disabled?0.5:1, width:full?"100%":"auto", transition:"all 0.15s", ...vs[variant], ...sx }}
+      onMouseEnter={e=>{ if(!disabled){e.currentTarget.style.opacity="0.87";e.currentTarget.style.transform="translateY(-1px)";} }}
+      onMouseLeave={e=>{ e.currentTarget.style.opacity="1";e.currentTarget.style.transform="translateY(0)"; }}>
+      {Icon&&<Icon size={fs+1} strokeWidth={2}/>}{children}
+    </button>
+  );
+};
+ 
+const Card = ({ children, style:sx={}, hover=false, onClick, left }) => {
+  const [hov,setHov]=useState(false);
+  return (
+    <div onClick={onClick} onMouseEnter={()=>hover&&setHov(true)} onMouseLeave={()=>setHov(false)}
+      style={{ background:C.bgCard, borderRadius:12, boxShadow:hov?C.shadowH:C.shadow, border:`1px solid ${C.border}`, transition:"all 0.2s", transform:hov?"translateY(-2px)":"none", cursor:onClick?"pointer":"default", borderLeft:left?`4px solid ${left}`:undefined, ...sx }}>
+      {children}
+    </div>
+  );
+};
+ 
+const Modal = ({ title, onClose, children, width=500 }) => (
+  <div style={{ position:"fixed", inset:0, background:"rgba(13,33,55,0.65)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:3000, backdropFilter:"blur(8px)", padding:16 }}>
+    <div style={{ background:C.white, borderRadius:16, padding:"28px", width:"100%", maxWidth:width, boxShadow:"0 32px 80px rgba(0,0,0,0.3)", maxHeight:"90vh", overflowY:"auto" }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20, paddingBottom:16, borderBottom:`1px solid ${C.border}` }}>
+        <h2 style={{ margin:0, fontSize:17, fontWeight:800, color:C.navy, fontFamily:"Georgia,serif" }}>{title}</h2>
+        <button onClick={onClose} style={{ border:"none", background:C.gray100, borderRadius:"50%", width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><X size={15} color={C.gray500}/></button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+ 
+const StatCard = ({ label, value, Icon, color, sub, onClick }) => (
+  <Card hover={!!onClick} onClick={onClick} style={{ padding:"18px 20px", display:"flex", alignItems:"center", gap:14 }}>
+    <div style={{ width:50, height:50, borderRadius:12, background:color+"1A", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon size={22} color={color} strokeWidth={1.8}/></div>
+    <div>
+      <div style={{ fontSize:26, fontWeight:900, color:C.navy, lineHeight:1, fontFamily:"Georgia,serif" }}>{value}</div>
+      <div style={{ fontSize:12, color:C.gray500, marginTop:2 }}>{label}</div>
+      {sub&&<div style={{ fontSize:11, color:color, fontWeight:700, marginTop:2 }}>{sub}</div>}
+    </div>
+  </Card>
+);
+ 
+const SectionTitle = ({ children, sub }) => (
+  <div style={{ marginBottom:18 }}>
+    <h2 style={{ margin:0, fontSize:20, fontWeight:800, color:C.navy, fontFamily:"Georgia,serif" }}>{children}</h2>
+    {sub&&<p style={{ margin:"4px 0 0", fontSize:13, color:C.gray500 }}>{sub}</p>}
+  </div>
+);
+ 
+// ─────────────────────────────────────────────────────
+// MINI CALENDAR
+// ─────────────────────────────────────────────────────
+const MiniCalendar = ({ selected, onSelect }) => {
+  const today=new Date();
+  const [y,setY]=useState(today.getFullYear());
+  const [m,setM]=useState(today.getMonth());
+  const fd=new Date(y,m,1).getDay(), off=fd===0?6:fd-1, dim=new Date(y,m+1,0).getDate();
+  const cells=[...Array(off).fill(null),...Array.from({length:dim},(_,i)=>i+1)];
+  const toKey=d=>`${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  const isPast=d=>new Date(toKey(d))<new Date(today.toDateString());
+  return (
+    <Card style={{ padding:20 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+        <button onClick={()=>m===0?(setM(11),setY(y-1)):setM(m-1)} style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:8, width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><ChevronLeft size={15} color={C.gray500}/></button>
+        <span style={{ fontWeight:700, fontSize:14, color:C.navy }}>{MONTHS[m]} {y}</span>
+        <button onClick={()=>m===11?(setM(0),setY(y+1)):setM(m+1)} style={{ border:`1px solid ${C.border}`, background:C.white, borderRadius:8, width:32, height:32, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><ChevronRight size={15} color={C.gray500}/></button>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:6 }}>
+        {DAYS.map(d=><div key={d} style={{ textAlign:"center", fontSize:10, fontWeight:700, color:C.gray400 }}>{d}</div>)}
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+        {cells.map((d,i)=>{
+          if(!d) return <div key={i}/>;
+          const past=isPast(d),sel=toKey(d)===selected,isT=toKey(d)===today.toISOString().split("T")[0];
+          return <div key={i} onClick={()=>!past&&onSelect(toKey(d))} style={{ textAlign:"center", padding:"7px 2px", borderRadius:7, fontSize:12, fontWeight:sel?800:400, cursor:past?"default":"pointer", background:sel?C.tealDk:isT?C.tealLt:"transparent", color:sel?"#fff":past?C.gray400:isT?C.tealDk:C.gray900, transition:"all 0.1s" }}>{d}</div>;
+        })}
+      </div>
+    </Card>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// BOOKING WIZARD
+// ─────────────────────────────────────────────────────
+const BookingWizard = ({ med, onClose, onConfirm }) => {
+  const { rdvs } = useApp();
+  const [step,setStep]=useState(1);
+  const [date,setDate]=useState(""); const [slot,setSlot]=useState(""); const [motif,setMotif]=useState(""); const [done,setDone]=useState(false);
+  const booked=rdvs.filter(r=>r.medecin_id===med.id&&r.date===date&&r.statut!=="annulé").map(r=>r.heure);
+  const confirm=()=>{ onConfirm({ medecin_id:med.id, date, heure:slot, motif, statut:"en attente" }); setDone(true); };
+ 
+  if(done) return (
+    <div style={{ textAlign:"center", padding:"20px 0" }}>
+      <div style={{ width:64, height:64, borderRadius:"50%", background:C.greenLt, display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}><CheckCircle size={32} color={C.green} strokeWidth={2}/></div>
+      <h3 style={{ color:C.navy, fontSize:20, fontWeight:900, margin:"0 0 8px", fontFamily:"Georgia,serif" }}>Demande envoyée !</h3>
+      <p style={{ color:C.gray500, fontSize:13, margin:"0 0 18px" }}>Votre RDV est visible par la secrétaire et le médecin en temps réel.</p>
+      <div style={{ background:C.tealLt, borderRadius:10, padding:"14px", fontSize:13, color:C.navy, marginBottom:20, textAlign:"left", border:`1px solid ${C.teal}22` }}>
+        <div style={{ fontWeight:800 }}>Dr. {med.prenom} {med.nom}</div>
+        <div style={{ color:C.tealDk, marginTop:5, display:"flex", gap:14 }}>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><Calendar size={12}/>{date}</span>
+          <span style={{ display:"flex", alignItems:"center", gap:4 }}><Clock size={12}/>{slot}</span>
+        </div>
+      </div>
+      <Btn full onClick={onClose}>Fermer</Btn>
+    </div>
+  );
+ 
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"center", marginBottom:22 }}>
+        {[{n:1,l:"Date"},{n:2,l:"Heure"},{n:3,l:"Motif"}].map((s,i)=>(
+          <div key={s.n} style={{ display:"flex", alignItems:"center", flex:i<2?1:"auto" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ width:28, height:28, borderRadius:"50%", background:step>=s.n?C.tealDk:C.gray100, color:step>=s.n?"#fff":C.gray400, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:12, border:`2px solid ${step>=s.n?C.tealDk:C.border}`, flexShrink:0, transition:"all 0.2s" }}>
+                {step>s.n?<CheckCircle size={13} strokeWidth={3}/>:s.n}
+              </div>
+              <span style={{ fontSize:12, fontWeight:step===s.n?700:400, color:step===s.n?C.navy:C.gray400 }}>{s.l}</span>
+            </div>
+            {i<2&&<div style={{ flex:1, height:2, background:step>s.n?C.tealDk:C.border, margin:"0 8px", transition:"background 0.3s" }}/>}
+          </div>
+        ))}
+      </div>
+      <div style={{ background:C.tealLt, borderRadius:10, padding:"12px 14px", marginBottom:18, display:"flex", alignItems:"center", gap:10, border:`1px solid ${C.teal}22` }}>
+        <div style={{ width:38, height:38, borderRadius:9, background:C.grad, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:13 }}>{med.prenom[0]}{med.nom[0]}</div>
+        <div><div style={{ fontWeight:800, fontSize:13, color:C.navy }}>Dr. {med.prenom} {med.nom}</div><div style={{ fontSize:11, color:C.tealDk }}>{med.specialite} · {med.tarif}</div></div>
+      </div>
+      {step===1&&<div><MiniCalendar selected={date} onSelect={d=>{setDate(d);setSlot("");}}/><div style={{ marginTop:14, display:"flex", justifyContent:"flex-end" }}><Btn onClick={()=>date&&setStep(2)} disabled={!date} icon={ArrowRight}>Choisir l'heure</Btn></div></div>}
+      {step===2&&(
+        <div>
+          {[{l:"🌅 Matin",s:CRN_M},{l:"🌆 Après-midi",s:CRN_A}].map(g=>(
+            <div key={g.l} style={{ marginBottom:14 }}>
+              <div style={{ fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.8, marginBottom:9 }}>{g.l}</div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:7 }}>
+                {g.s.map(h=>{ const free=!booked.includes(h),sel=slot===h; return <div key={h} onClick={()=>free&&setSlot(h)} style={{ padding:"9px 0", borderRadius:8, textAlign:"center", fontSize:13, fontWeight:700, cursor:free?"pointer":"not-allowed", background:sel?C.tealDk:free?C.white:C.gray100, color:sel?"#fff":free?C.navy:C.gray400, border:`1.5px solid ${sel?C.tealDk:free?C.border:"transparent"}`, textDecoration:free?"none":"line-through", transition:"all 0.12s" }}>{h}</div>; })}
+              </div>
+            </div>
+          ))}
+          <div style={{ display:"flex", gap:9, justifyContent:"flex-end", marginTop:8 }}>
+            <Btn variant="ghost" onClick={()=>setStep(1)} icon={ChevronLeft}>Retour</Btn>
+            <Btn onClick={()=>slot&&setStep(3)} disabled={!slot}>Continuer</Btn>
+          </div>
+        </div>
+      )}
+      {step===3&&(
+        <div>
+          <div style={{ background:C.gray50, borderRadius:10, padding:"14px", marginBottom:16, border:`1px solid ${C.border}` }}>
+            {[["Médecin",`Dr. ${med.prenom} ${med.nom}`],["Date",date],["Heure",slot],["Tarif",med.tarif]].map(([k,v])=>(
+              <div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:`1px solid ${C.border}`, fontSize:13 }}>
+                <span style={{ color:C.gray500, fontWeight:600 }}>{k}</span><span style={{ color:C.navy, fontWeight:700 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.7, marginBottom:7 }}>Motif de consultation *</label>
+            <textarea value={motif} onChange={e=>setMotif(e.target.value)} placeholder="Décrivez vos symptômes..." rows={4}
+              style={{ width:"100%", padding:"11px 13px", borderRadius:9, border:`1.5px solid ${C.border}`, fontSize:14, color:C.navy, outline:"none", fontFamily:"inherit", resize:"none", boxSizing:"border-box", transition:"border 0.2s" }}
+              onFocus={e=>e.target.style.borderColor=C.teal} onBlur={e=>e.target.style.borderColor=C.border}/>
+          </div>
+          <div style={{ display:"flex", gap:9 }}>
+            <Btn variant="ghost" onClick={()=>setStep(2)} icon={ChevronLeft}>Retour</Btn>
+            <Btn variant="success" onClick={confirm} disabled={!motif} style={{ flex:1 }} icon={CheckCircle}>Confirmer</Btn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// DOCTOR CARD
+// ─────────────────────────────────────────────────────
+const DoctorCard = ({ med, onBook }) => {
+  const SI=SPEC_ICONS[med.specialite]||Stethoscope;
+  return (
+    <Card hover style={{ padding:"18px 20px" }}>
+      <div style={{ display:"flex", gap:14, alignItems:"flex-start" }}>
+        <div style={{ position:"relative", flexShrink:0 }}>
+          <div style={{ width:62, height:62, borderRadius:12, background:C.grad, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:18 }}>{med.prenom[0]}{med.nom[0]}</div>
+          <div style={{ position:"absolute", bottom:-4, right:-4, width:20, height:20, borderRadius:"50%", background:med.dispo?C.green:C.gray400, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            {med.dispo?<CheckCircle size={11} color="#fff" strokeWidth={2.5}/>:<Clock size={10} color="#fff"/>}
+          </div>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+            <div>
+              <div style={{ fontWeight:800, fontSize:15, color:C.navy, fontFamily:"Georgia,serif" }}>Dr. {med.prenom} {med.nom}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}><SI size={12} color={C.tealDk} strokeWidth={2}/><span style={{ fontSize:12, color:C.tealDk, fontWeight:700 }}>{med.specialite}</span></div>
+            </div>
+            <span style={{ fontSize:13, fontWeight:800, color:C.tealDk, background:C.tealLt, padding:"3px 10px", borderRadius:6 }}>{med.tarif}</span>
+          </div>
+          <div style={{ marginTop:8 }}><Stars note={med.note}/></div>
+          <div style={{ display:"flex", gap:14, marginTop:7, flexWrap:"wrap" }}>
+            <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><MapPin size={11}/>{med.ville}</span>
+            <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><ClipboardList size={11}/>{med.avis} avis</span>
+            <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><Calendar size={11}/>{med.exp}</span>
+          </div>
+          <div style={{ marginTop:12, display:"flex", justifyContent:"flex-end" }}>
+            {med.dispo?<Btn onClick={()=>onBook(med)} icon={Calendar}>Prendre RDV</Btn>
+              :<span style={{ fontSize:12, color:C.gray400, fontWeight:600, padding:"8px 14px", background:C.gray100, borderRadius:8 }}>Indisponible</span>}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// PATIENT — Accueil
+// ─────────────────────────────────────────────────────
+const PatientAccueil = ({ user }) => {
+  const { rdvs, addRdv, messages } = useApp();
+  const [search,setSearch]=useState(""); const [spec,setSpec]=useState(""); const [ville,setVille]=useState(""); const [bookMed,setBookMed]=useState(null);
+  const myMsgs=messages.filter(m=>m.to_patient_id===user.patient_id);
+  const unread=myMsgs.filter(m=>!m.lu).length;
+  const filtered=MEDECINS_DB.filter(m=>(!spec||m.specialite===spec)&&(!ville||m.ville===ville)&&(!search||`${m.prenom} ${m.nom} ${m.specialite}`.toLowerCase().includes(search.toLowerCase())));
+  const prochains=rdvs.filter(r=>r.patient_id===user.patient_id&&(r.statut==="confirmé"||r.statut==="en attente")).slice(0,2);
+  return (
+    <div>
+      {unread>0&&<div style={{ background:C.tealLt, border:`1px solid ${C.teal}44`, borderRadius:10, padding:"11px 16px", marginBottom:16, display:"flex", alignItems:"center", gap:10 }}><Inbox size={17} color={C.tealDk}/><span style={{ fontSize:13, fontWeight:700, color:C.tealDk }}>Vous avez {unread} message{unread>1?"s":""} non lu{unread>1?"s":""} de la secrétaire</span></div>}
+      <div style={{ background:C.grad, borderRadius:16, padding:"28px 24px", marginBottom:22, position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", top:-50, right:-50, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)" }}/>
+        <div style={{ position:"relative", zIndex:1 }}>
+          <div style={{ fontSize:11, color:"rgba(255,255,255,0.7)", textTransform:"uppercase", letterSpacing:2, marginBottom:8, fontWeight:600 }}>Votre santé, notre priorité</div>
+          <h1 style={{ margin:"0 0 4px", fontSize:22, fontWeight:900, color:"#fff", fontFamily:"Georgia,serif" }}>Bonjour, {user.prenom} 👋</h1>
+          <p style={{ margin:"0 0 18px", color:"rgba(255,255,255,0.75)", fontSize:13 }}>Trouvez un médecin et prenez rendez-vous en ligne</p>
+          <div style={{ background:"rgba(255,255,255,0.95)", borderRadius:9, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
+            <Search size={17} color={C.tealDk}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Médecin, spécialité..." style={{ flex:1, border:"none", background:"transparent", fontSize:14, color:C.navy, outline:"none", fontFamily:"inherit" }}/>
+          </div>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:7, overflowX:"auto", paddingBottom:4, marginBottom:18 }}>
+        <button onClick={()=>setSpec("")} style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 13px", borderRadius:99, border:`1.5px solid ${!spec?C.tealDk:C.border}`, background:!spec?C.tealLt:C.white, color:!spec?C.tealDk:C.gray500, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}><Stethoscope size={12} strokeWidth={2}/>Tous</button>
+        {SPECS.map(s=>{ const I=SPEC_ICONS[s]||Stethoscope; return <button key={s} onClick={()=>setSpec(s===spec?"":s)} style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 13px", borderRadius:99, border:`1.5px solid ${spec===s?C.tealDk:C.border}`, background:spec===s?C.tealLt:C.white, color:spec===s?C.tealDk:C.gray500, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit", flexShrink:0 }}><I size={12} strokeWidth={2}/>{s}</button>; })}
+      </div>
+      <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:20 }}>
+        <div style={{ position:"relative" }}>
+          <MapPin size={13} color={C.gray400} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)" }}/>
+          <select value={ville} onChange={e=>setVille(e.target.value)} style={{ paddingLeft:28, paddingRight:12, paddingTop:8, paddingBottom:8, borderRadius:8, border:`1.5px solid ${ville?C.tealDk:C.border}`, fontSize:12, color:ville?C.tealDk:C.gray500, background:ville?C.tealLt:C.white, fontFamily:"inherit", cursor:"pointer", outline:"none" }}>
+            <option value="">Toutes les villes</option>{VILLES.map(v=><option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+        {(spec||ville||search)&&<button onClick={()=>{setSpec("");setVille("");setSearch("");}} style={{ display:"flex", alignItems:"center", gap:4, padding:"7px 11px", borderRadius:8, border:`1px solid ${C.border}`, fontSize:12, color:C.gray500, background:C.white, cursor:"pointer", fontFamily:"inherit" }}><X size={12}/>Effacer</button>}
+        <span style={{ marginLeft:"auto", fontSize:12, color:C.gray400, fontWeight:600 }}>{filtered.length} médecin{filtered.length!==1?"s":""}</span>
+      </div>
+      {prochains.length>0&&(
+        <div style={{ marginBottom:22 }}>
+          <div style={{ fontSize:14, fontWeight:800, color:C.navy, marginBottom:10, fontFamily:"Georgia,serif" }}>Prochains rendez-vous</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:9 }}>
+            {prochains.map(rdv=>{ const m=MEDECINS_DB.find(x=>x.id===rdv.medecin_id); return (
+              <Card key={rdv.id} left={C.tealDk} style={{ padding:"13px 16px", display:"flex", alignItems:"center", gap:11 }}>
+                <div style={{ width:42, height:42, borderRadius:10, background:C.tealLt, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <span style={{ fontSize:15, fontWeight:900, color:C.tealDk, lineHeight:1 }}>{rdv.date.split("-")[2]}</span>
+                  <span style={{ fontSize:9, color:C.gray400 }}>{MONTHS[parseInt(rdv.date.split("-")[1])-1].slice(0,3)}</span>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:C.navy }}>Dr. {m?.prenom} {m?.nom}</div>
+                  <div style={{ fontSize:11, color:C.gray500, display:"flex", gap:7, marginTop:2 }}><span style={{ display:"flex", alignItems:"center", gap:3 }}><Clock size={10}/>{rdv.heure}</span></div>
+                </div>
+                <StatusBadge statut={rdv.statut}/>
+              </Card>
+            );})}
+          </div>
+        </div>
+      )}
+      <SectionTitle sub={`${filtered.length} médecin${filtered.length!==1?"s":""} disponible${filtered.length!==1?"s":""}`}>Médecins</SectionTitle>
+      <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+        {filtered.map(m=><DoctorCard key={m.id} med={m} onBook={setBookMed}/>)}
+      </div>
+      {bookMed&&<Modal title="Prendre rendez-vous" onClose={()=>setBookMed(null)}><BookingWizard med={bookMed} onConfirm={r=>{ addRdv({...r,patient_id:user.patient_id}); }} onClose={()=>setBookMed(null)}/></Modal>}
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// PATIENT — RDV + Messagerie reçue
+// ─────────────────────────────────────────────────────
+const PatientRdvPage = ({ user }) => {
+  const { rdvs, messages, markMsgRead } = useApp();
+  const [tab,setTab]=useState("rdv");
+  const [filter,setFilter]=useState("tous");
+  const mes=rdvs.filter(r=>r.patient_id===user.patient_id);
+  const shown=filter==="tous"?mes:mes.filter(r=>r.statut===filter);
+  const myMsgs=messages.filter(m=>m.to_patient_id===user.patient_id);
+  const unread=myMsgs.filter(m=>!m.lu).length;
+  const [openMsg,setOpenMsg]=useState(null);
+  return (
+    <div>
+      <div style={{ display:"flex", gap:0, marginBottom:22, background:C.gray100, borderRadius:10, padding:4 }}>
+        {[{id:"rdv",label:"Mes rendez-vous",Icon:Calendar},{id:"msgs",label:`Messagerie${unread>0?` (${unread})`:""}`,Icon:MessageSquare}].map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"10px", borderRadius:8, border:"none", background:tab===t.id?C.white:"transparent", color:tab===t.id?C.navy:C.gray500, fontWeight:tab===t.id?800:500, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:tab===t.id?C.shadow:"none", transition:"all 0.15s" }}>
+            <t.Icon size={15} strokeWidth={tab===t.id?2.2:1.8}/>{t.label}
+          </button>
+        ))}
+      </div>
+      {tab==="rdv"&&(
+        <div>
+          <div style={{ display:"flex", gap:7, overflowX:"auto", marginBottom:18, paddingBottom:2 }}>
+            {["tous","confirmé","en attente","annulé"].map(f=>(
+              <button key={f} onClick={()=>setFilter(f)} style={{ padding:"7px 14px", borderRadius:99, border:`1.5px solid ${filter===f?C.tealDk:C.border}`, background:filter===f?C.tealDk:C.white, color:filter===f?"#fff":C.gray500, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit", flexShrink:0, transition:"all 0.15s" }}>
+                {f==="tous"?"Tous":STATUS[f]?.label}
+              </button>
+            ))}
+          </div>
+          {shown.length===0&&<Card style={{ padding:"48px", textAlign:"center" }}><Calendar size={32} color={C.gray400} style={{ margin:"0 auto 12px", display:"block" }}/><div style={{ color:C.gray500 }}>Aucun rendez-vous trouvé.</div></Card>}
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {shown.map(rdv=>{ const m=MEDECINS_DB.find(x=>x.id===rdv.medecin_id); const I=SPEC_ICONS[m?.specialite]||Stethoscope; return (
+              <Card key={rdv.id} left={STATUS[rdv.statut]?.text||C.gray400} style={{ padding:"16px 20px" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:10 }}>
+                  <div><div style={{ fontWeight:800, fontSize:15, color:C.navy, fontFamily:"Georgia,serif" }}>Dr. {m?.prenom} {m?.nom}</div><div style={{ display:"flex", alignItems:"center", gap:4, marginTop:3 }}><I size={12} color={C.tealDk} strokeWidth={2}/><span style={{ fontSize:12, color:C.tealDk, fontWeight:600 }}>{m?.specialite}</span></div></div>
+                  <StatusBadge statut={rdv.statut}/>
+                </div>
+                <div style={{ display:"flex", gap:16, flexWrap:"wrap" }}>
+                  <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><Calendar size={12}/>{rdv.date}</span>
+                  <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><Clock size={12}/>{rdv.heure}</span>
+                </div>
+                {rdv.motif&&<div style={{ marginTop:9, padding:"8px 12px", background:C.tealLt, borderRadius:8, fontSize:12, color:C.tealDk, fontWeight:600, display:"flex", gap:6, alignItems:"center" }}><FileText size={12}/>{rdv.motif}</div>}
+              </Card>
+            );})}
+          </div>
+        </div>
+      )}
+      {tab==="msgs"&&(
+        <div>
+          <SectionTitle sub="Messages reçus de la secrétaire">Messagerie</SectionTitle>
+          {myMsgs.length===0&&<Card style={{ padding:"48px", textAlign:"center" }}><Inbox size={32} color={C.gray400} style={{ margin:"0 auto 12px", display:"block" }}/><div style={{ color:C.gray500 }}>Aucun message reçu.</div></Card>}
+          <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+            {myMsgs.map(msg=>(
+              <Card key={msg.id} hover onClick={()=>{ setOpenMsg(msg); if(!msg.lu) markMsgRead(msg.id); }} left={!msg.lu?C.tealDk:C.border} style={{ padding:"14px 18px" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:C.grad, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:13, flexShrink:0 }}>SC</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}><span style={{ fontWeight:!msg.lu?800:600, fontSize:14, color:C.navy }}>{msg.sujet}</span><span style={{ fontSize:11, color:C.gray400 }}>{msg.date}</span></div>
+                    <div style={{ fontSize:12, color:C.gray500, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>Secrétaire · {msg.corps.slice(0,60)}...</div>
+                  </div>
+                  {!msg.lu&&<span style={{ width:9, height:9, borderRadius:"50%", background:C.tealDk, flexShrink:0 }}/>}
+                </div>
+              </Card>
+            ))}
+          </div>
+          {openMsg&&(
+            <Modal title={openMsg.sujet} onClose={()=>setOpenMsg(null)} width={480}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", background:C.tealLt, borderRadius:10, marginBottom:18 }}>
+                <div style={{ width:42, height:42, borderRadius:"50%", background:C.grad, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:14, flexShrink:0 }}>SC</div>
+                <div><div style={{ fontWeight:800, color:C.navy }}>Secrétaire médicale</div><div style={{ fontSize:12, color:C.tealDk }}>{openMsg.date}</div></div>
+              </div>
+              <p style={{ fontSize:14, color:C.gray700, lineHeight:1.7, margin:"0 0 20px" }}>{openMsg.corps}</p>
+              <Btn full onClick={()=>setOpenMsg(null)}>Fermer</Btn>
+            </Modal>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// MÉDECIN VIEWS
+// ─────────────────────────────────────────────────────
+const MedecinAccueil = ({ user }) => {
+  const { rdvs } = useApp();
+  const mesRdv=rdvs.filter(r=>r.medecin_id===(user.medecin_id||1));
+  const rdvAujourd=mesRdv.filter(r=>r.date==="2025-03-10"||r.date===new Date().toISOString().split("T")[0]);
+  const [motifMod,setMotifMod]=useState(null);
+  return (
+    <div>
+      <div style={{ background:C.grad, borderRadius:16, padding:"26px 22px", marginBottom:22, color:"#fff" }}>
+        <div style={{ fontSize:11, opacity:0.7, textTransform:"uppercase", letterSpacing:2, marginBottom:8 }}>Espace Médecin</div>
+        <h1 style={{ margin:"0 0 4px", fontSize:22, fontWeight:900, fontFamily:"Georgia,serif" }}>Dr. {user.prenom} {user.nom}</h1>
+        <div style={{ display:"flex", alignItems:"center", gap:6, opacity:0.8 }}><Stethoscope size={13}/><span style={{ fontSize:13 }}>{user.specialite}</span></div>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(170px,1fr))", gap:12, marginBottom:22 }}>
+        <StatCard label="RDV aujourd'hui" value={rdvAujourd.length} Icon={Users} color={C.tealDk}/>
+        <StatCard label="Confirmés" value={mesRdv.filter(r=>r.statut==="confirmé").length} Icon={CheckCircle} color={C.green}/>
+        <StatCard label="En attente" value={mesRdv.filter(r=>r.statut==="en attente").length} Icon={Clock} color={C.amber}/>
+      </div>
+      {mesRdv.filter(r=>r.statut==="en attente").length>0&&(
+        <div style={{ background:C.amberLt, border:`1px solid ${C.amber}44`, borderRadius:10, padding:"11px 16px", marginBottom:18, display:"flex", alignItems:"center", gap:10 }}>
+          <Bell size={17} color={C.amber}/>
+          <span style={{ fontSize:13, fontWeight:700, color:"#92400E" }}>{mesRdv.filter(r=>r.statut==="en attente").length} nouveau{mesRdv.filter(r=>r.statut==="en attente").length>1?"x":""} RDV en attente</span>
+        </div>
+      )}
+      <SectionTitle sub="Consultations du jour">Patients du jour</SectionTitle>
+      {rdvAujourd.length===0&&<Card style={{ padding:"40px", textAlign:"center" }}><Users size={32} color={C.gray400} style={{ margin:"0 auto 12px", display:"block" }}/><div style={{ color:C.gray500 }}>Aucun patient aujourd'hui.</div></Card>}
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {rdvAujourd.map(rdv=>{ const p=PATIENTS_DB.find(x=>x.id===rdv.patient_id); return (
+          <Card key={rdv.id} style={{ padding:"15px 18px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:13 }}>
+              <Avatar name={`${p?.prenom} ${p?.nom}`} color={C.tealDk} size={44}/>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:800, fontSize:14, color:C.navy, fontFamily:"Georgia,serif" }}>{p?.prenom} {p?.nom}</div>
+                <div style={{ display:"flex", gap:12, marginTop:4 }}>
+                  <span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><Clock size={11}/>{rdv.heure}</span>
+                  <span style={{ fontSize:12, color:C.red, fontWeight:700 }}><Heart size={11} fill={C.red} style={{ display:"inline", marginRight:3 }}/>{p?.gs}</span>
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:7, alignItems:"flex-end" }}>
+                <StatusBadge statut={rdv.statut}/>
+                <button onClick={()=>setMotifMod({rdv,p})} style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, fontWeight:700, color:C.tealDk, background:C.tealLt, border:`1px solid ${C.teal}33`, borderRadius:7, padding:"5px 10px", cursor:"pointer", fontFamily:"inherit" }}><FileText size={11}/>Motif</button>
+              </div>
+            </div>
+          </Card>
+        );})}
+      </div>
+      {motifMod&&(
+        <Modal title="Motif de consultation" onClose={()=>setMotifMod(null)} width={420}>
+          <div style={{ display:"flex", alignItems:"center", gap:13, padding:"14px", background:C.gray50, borderRadius:10, marginBottom:16, border:`1px solid ${C.border}` }}>
+            <Avatar name={`${motifMod.p?.prenom} ${motifMod.p?.nom}`} color={C.tealDk} size={46}/>
+            <div><div style={{ fontWeight:800, fontSize:15, color:C.navy }}>{motifMod.p?.prenom} {motifMod.p?.nom}</div>
+              <div style={{ display:"flex", gap:12, marginTop:4 }}><span style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><Phone size={11}/>{motifMod.p?.tel}</span><span style={{ fontSize:12, color:C.red, fontWeight:700 }}>Groupe: {motifMod.p?.gs}</span></div>
+            </div>
+          </div>
+          <div style={{ background:C.tealLt, borderRadius:10, padding:"15px 17px", marginBottom:16, border:`1px solid ${C.teal}22` }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, color:C.tealDk, textTransform:"uppercase", letterSpacing:0.7, marginBottom:9 }}><FileText size={12}/>Motif déclaré par le patient</div>
+            <p style={{ margin:0, fontSize:15, color:C.navy, fontWeight:600, lineHeight:1.7 }}>{motifMod.rdv.motif}</p>
+          </div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+            <span style={{ display:"flex", alignItems:"center", gap:5, fontSize:12, color:C.gray500 }}><Clock size={12}/>{motifMod.rdv.heure} · {motifMod.rdv.date}</span>
+            <StatusBadge statut={motifMod.rdv.statut}/>
+          </div>
+          <Btn full onClick={()=>setMotifMod(null)}>Fermer</Btn>
+        </Modal>
+      )}
+    </div>
+  );
+};
+ 
+const MedecinPlanning = ({ user }) => {
+  const { rdvs } = useApp();
+  const mesRdv=rdvs.filter(r=>r.medecin_id===(user.medecin_id||1));
+  const [sel,setSel]=useState("2025-03-10");
+  const rdvJour=mesRdv.filter(r=>r.date===sel);
+  return (
+    <div>
+      <SectionTitle sub="Gérez votre emploi du temps">Mon planning</SectionTitle>
+      <div style={{ display:"grid", gridTemplateColumns:"300px 1fr", gap:20 }}>
+        <MiniCalendar selected={sel} onSelect={setSel}/>
+        <div>
+          <div style={{ fontSize:13, fontWeight:700, color:C.gray500, marginBottom:12, display:"flex", alignItems:"center", gap:6 }}><Calendar size={14} color={C.tealDk}/>{rdvJour.length} RDV · {sel}</div>
+          {rdvJour.length===0&&<Card style={{ padding:"40px", textAlign:"center" }}><Calendar size={32} color={C.gray400} style={{ margin:"0 auto 12px", display:"block" }}/><div style={{ color:C.gray500 }}>Pas de RDV ce jour.</div></Card>}
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {rdvJour.map(rdv=>{ const p=PATIENTS_DB.find(x=>x.id===rdv.patient_id); return (
+              <Card key={rdv.id} style={{ padding:"13px 17px", display:"flex", alignItems:"center", gap:12 }}>
+                <div style={{ background:C.tealLt, borderRadius:8, padding:"7px 10px", textAlign:"center", flexShrink:0 }}><div style={{ fontSize:12, fontWeight:900, color:C.tealDk }}>{rdv.heure}</div></div>
+                <Avatar name={`${p?.prenom} ${p?.nom}`} color={C.tealDk} size={34}/>
+                <div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:13, color:C.navy }}>{p?.prenom} {p?.nom}</div><div style={{ fontSize:11, color:C.gray500, marginTop:2 }}>{rdv.motif}</div></div>
+                <StatusBadge statut={rdv.statut}/>
+              </Card>
+            );})}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// SECRÉTAIRE — Dashboard
+// ─────────────────────────────────────────────────────
+const SecretaireDashboard = ({ onNavigate }) => {
+  const { rdvs } = useApp();
+  const enAtt=rdvs.filter(r=>r.statut==="en attente").length;
+  return (
+    <div>
+      <div style={{ background:C.grad, borderRadius:16, padding:"26px 22px", marginBottom:22, color:"#fff" }}>
+        <div style={{ fontSize:11, opacity:0.7, textTransform:"uppercase", letterSpacing:2, marginBottom:8 }}>Espace Secrétaire</div>
+        <h1 style={{ margin:"0 0 4px", fontSize:22, fontWeight:900, fontFamily:"Georgia,serif" }}>Tableau de bord</h1>
+        <p style={{ margin:0, opacity:0.75, fontSize:13 }}>Vue d'ensemble du cabinet médical</p>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12, marginBottom:22 }}>
+        <StatCard label="Patients" value={PATIENTS_DB.length} Icon={Users} color={C.tealDk} onClick={()=>onNavigate("planning")}/>
+        <StatCard label="Médecins" value={MEDECINS_DB.length} Icon={Stethoscope} color={C.navy}/>
+        <StatCard label="Total RDV" value={rdvs.length} Icon={Calendar} color={C.green} onClick={()=>onNavigate("planning")}/>
+        <StatCard label="En attente" value={enAtt} Icon={Clock} color={C.amber} sub={enAtt>0?"Action requise":""} onClick={()=>onNavigate("planning")}/>
+      </div>
+      {enAtt>0&&(
+        <Card style={{ padding:"14px 18px", marginBottom:16, background:C.amberLt, border:`1px solid ${C.amber}44`, cursor:"pointer" }} onClick={()=>onNavigate("planning")}>
+          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:C.amber+"22", display:"flex", alignItems:"center", justifyContent:"center" }}><AlertTriangle size={19} color={C.amber}/></div>
+            <div style={{ flex:1 }}><div style={{ fontWeight:800, fontSize:14, color:"#92400E" }}>{enAtt} rendez-vous à valider</div><div style={{ fontSize:12, color:C.amber }}>Cliquez pour accéder au planning</div></div>
+            <ArrowRight size={17} color={C.amber}/>
+          </div>
+        </Card>
+      )}
+      <SectionTitle>RDV récents</SectionTitle>
+      {rdvs.slice(0,5).map(rdv=>{ const p=PATIENTS_DB.find(x=>x.id===rdv.patient_id); const m=MEDECINS_DB.find(x=>x.id===rdv.medecin_id); return (
+        <Card key={rdv.id} style={{ padding:"12px 17px", marginBottom:8, display:"flex", alignItems:"center", gap:12 }}>
+          <Avatar name={`${p?.prenom} ${p?.nom}`} color={C.tealDk} size={36}/>
+          <div style={{ flex:1 }}><div style={{ fontWeight:700, fontSize:13, color:C.navy }}>{p?.prenom} {p?.nom}</div>
+            <div style={{ fontSize:11, color:C.gray500, display:"flex", gap:8, marginTop:2 }}>
+              <span style={{ display:"flex", alignItems:"center", gap:3 }}><Stethoscope size={10}/>Dr. {m?.nom}</span>
+              <span style={{ display:"flex", alignItems:"center", gap:3 }}><Clock size={10}/>{rdv.heure}</span>
+            </div>
+          </div>
+          <StatusBadge statut={rdv.statut}/>
+        </Card>
+      );})}
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// SECRÉTAIRE — Planning
+// ─────────────────────────────────────────────────────
+const SecretairePlanning = () => {
+  const { rdvs, validateRdv, annulerRdv, reporterRdv, setArrivee } = useApp();
+  const [fMed,setFMed]=useState(""); const [fStat,setFStat]=useState(""); const [fDate,setFDate]=useState("");
+  const [repMod,setRepMod]=useState(null); const [newDate,setNewDate]=useState("");
+  const filtered=rdvs.filter(r=>(!fMed||r.medecin_id===parseInt(fMed))&&(!fStat||r.statut===fStat)&&(!fDate||r.date===fDate));
+  const enAtt=rdvs.filter(r=>r.statut==="en attente");
+  return (
+    <div>
+      <SectionTitle sub={`${filtered.length} rendez-vous`}>Planning global</SectionTitle>
+      {enAtt.length>0&&<div style={{ background:C.amberLt, borderRadius:10, padding:"11px 15px", marginBottom:16, border:`1px solid ${C.amber}44`, display:"flex", alignItems:"center", gap:10 }}><Clock size={17} color={C.amber}/><span style={{ fontSize:13, fontWeight:700, color:"#92400E" }}>{enAtt.length} RDV en attente</span><button onClick={()=>setFStat("en attente")} style={{ marginLeft:"auto", fontSize:12, fontWeight:700, color:C.amber, background:"transparent", border:"none", cursor:"pointer" }}>Filtrer →</button></div>}
+      <Card style={{ padding:"13px 15px", marginBottom:14 }}>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          {[{val:fMed,set:setFMed,Ic:Stethoscope,opts:[{v:"",l:"Tous médecins"},...MEDECINS_DB.map(m=>({v:m.id,l:`Dr. ${m.nom}`}))]},{val:fStat,set:setFStat,Ic:Filter,opts:[{v:"",l:"Tous statuts"},...Object.entries(STATUS).map(([k,v])=>({v:k,l:v.label}))]}].map(({val,set,Ic,opts},i)=>(
+            <div key={i} style={{ position:"relative" }}><Ic size={13} color={C.gray400} style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)" }}/><select value={val} onChange={e=>set(e.target.value)} style={{ paddingLeft:26, paddingRight:11, paddingTop:8, paddingBottom:8, borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:12, color:C.gray700, background:C.white, fontFamily:"inherit", cursor:"pointer", outline:"none" }}>{opts.map(o=><option key={o.v} value={o.v}>{o.l}</option>)}</select></div>
+          ))}
+          <div style={{ position:"relative" }}><Calendar size={13} color={C.gray400} style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)" }}/><input type="date" value={fDate} onChange={e=>setFDate(e.target.value)} style={{ paddingLeft:26, paddingRight:11, paddingTop:8, paddingBottom:8, borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:12, color:C.gray700, background:C.white, fontFamily:"inherit", cursor:"pointer", outline:"none" }}/></div>
+          {(fMed||fStat||fDate)&&<button onClick={()=>{setFMed("");setFStat("");setFDate("");}} style={{ display:"flex", alignItems:"center", gap:4, padding:"8px 11px", borderRadius:8, border:`1px solid ${C.border}`, fontSize:12, color:C.gray500, background:C.white, cursor:"pointer", fontFamily:"inherit" }}><X size={12}/>Reset</button>}
+        </div>
+      </Card>
+      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+        {filtered.length===0&&<Card style={{ padding:"40px", textAlign:"center" }}><ClipboardList size={32} color={C.gray400} style={{ margin:"0 auto 12px", display:"block" }}/><div style={{ color:C.gray500 }}>Aucun résultat.</div></Card>}
+        {filtered.map(rdv=>{ const p=PATIENTS_DB.find(x=>x.id===rdv.patient_id); const m=MEDECINS_DB.find(x=>x.id===rdv.medecin_id); return (
+          <Card key={rdv.id} left={STATUS[rdv.statut]?.text||C.gray400} style={{ padding:"15px 18px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
+              <Avatar name={`${p?.prenom} ${p?.nom}`} color={C.tealDk} size={40}/>
+              <div style={{ flex:1 }}><div style={{ fontWeight:800, fontSize:14, color:C.navy }}>{p?.prenom} {p?.nom}</div>
+                <div style={{ fontSize:11, color:C.gray500, display:"flex", gap:10, marginTop:3, flexWrap:"wrap" }}>
+                  <span style={{ display:"flex", alignItems:"center", gap:3 }}><Stethoscope size={10}/>Dr. {m?.nom}</span>
+                  <span style={{ display:"flex", alignItems:"center", gap:3 }}><Calendar size={10}/>{rdv.date}</span>
+                  <span style={{ display:"flex", alignItems:"center", gap:3 }}><Clock size={10}/>{rdv.heure}</span>
+                </div>
+              </div>
+              <StatusBadge statut={rdv.statut}/>
+            </div>
+            {rdv.motif&&<div style={{ display:"flex", gap:6, alignItems:"center", fontSize:12, color:C.tealDk, background:C.tealLt, padding:"7px 11px", borderRadius:7, marginBottom:10, fontWeight:600 }}><FileText size={12}/>{rdv.motif}</div>}
+            <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:10, padding:"8px 11px", background:C.gray50, borderRadius:8 }}>
+              <UserCheck size={13} color={C.gray500}/><span style={{ fontSize:12, color:C.gray500, fontWeight:600 }}>Arrivée :</span><ArriveeBadge statut={rdv.arrivee||"en attente"}/>
+              <select value={rdv.arrivee||"en attente"} onChange={e=>setArrivee(rdv.id,e.target.value)} style={{ marginLeft:"auto", padding:"4px 8px", borderRadius:7, border:`1px solid ${C.border}`, fontSize:11, color:C.gray700, outline:"none", fontFamily:"inherit", cursor:"pointer" }}>
+                <option value="en attente">En attente</option><option value="en salle">En salle</option><option value="absent">Absent</option>
+              </select>
+            </div>
+            <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+              {rdv.statut==="en attente"&&<Btn variant="success" size="sm" icon={CheckCircle} onClick={()=>validateRdv(rdv.id)}>Valider</Btn>}
+              {rdv.statut!=="annulé"&&<Btn variant="ghost" size="sm" icon={RefreshCw} onClick={()=>{setRepMod(rdv);setNewDate("");}}>Reporter</Btn>}
+              {rdv.statut!=="annulé"&&<Btn variant="danger" size="sm" icon={XCircle} onClick={()=>annulerRdv(rdv.id)}>Annuler</Btn>}
+            </div>
+          </Card>
+        );})}
+      </div>
+      {repMod&&(
+        <Modal title="Reporter le rendez-vous" onClose={()=>setRepMod(null)} width={380}>
+          <div style={{ background:C.gray50, borderRadius:9, padding:"11px 13px", marginBottom:14, fontSize:13, color:C.gray700 }}>{PATIENTS_DB.find(p=>p.id===repMod.patient_id)?.prenom} — {repMod.heure} · {repMod.date}</div>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.7, marginBottom:7 }}>Nouvelle date</label>
+          <div style={{ position:"relative", marginBottom:18 }}><Calendar size={13} color={C.gray400} style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)" }}/><input type="date" value={newDate} onChange={e=>setNewDate(e.target.value)} style={{ width:"100%", paddingLeft:32, paddingRight:12, paddingTop:10, paddingBottom:10, borderRadius:8, border:`1.5px solid ${C.border}`, fontSize:14, color:C.navy, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }}/></div>
+          <div style={{ display:"flex", gap:9 }}><Btn onClick={()=>{reporterRdv(repMod.id,newDate);setRepMod(null);}} disabled={!newDate} style={{ flex:1, padding:"11px" }} icon={CheckCircle}>Confirmer</Btn><Btn variant="ghost" onClick={()=>setRepMod(null)} style={{ flex:1, padding:"11px" }}>Annuler</Btn></div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// SECRÉTAIRE — Messagerie patients
+// ─────────────────────────────────────────────────────
+const SecretaireMessagerie = () => {
+  const { messages, sendMessage } = useApp();
+  const [selP,setSelP]=useState(null);
+  const [sujet,setSujet]=useState(""); const [corps,setCorps]=useState(""); const [sent,setSent]=useState(false);
+  const [compose,setCompose]=useState(false); const [search,setSearch]=useState(""); const [tmpl,setTmpl]=useState("");
+  const pats=PATIENTS_DB.filter(p=>`${p.prenom} ${p.nom}`.toLowerCase().includes(search.toLowerCase()));
+  const msgsOf=p=>messages.filter(m=>m.to_patient_id===p.id);
+  const applyTmpl=t=>{ if(!t) return; const f=TEMPLATES.find(x=>x.label===t); if(f){setSujet(f.sujet);setCorps(f.corps);} setTmpl(t); };
+  const handleSend=()=>{
+    if(!selP||!sujet||!corps) return;
+    sendMessage({to_patient_id:selP.id,sujet,corps});
+    setSent(true);
+    setTimeout(()=>{ setSent(false);setCompose(false);setSujet("");setCorps("");setTmpl(""); },2200);
+  };
+  return (
+    <div>
+      <SectionTitle sub="Contactez directement les patients du cabinet">Messagerie patients</SectionTitle>
+      <div style={{ display:"grid", gridTemplateColumns:"270px 1fr", gap:20 }}>
+        {/* Patient list */}
+        <div>
+          <div style={{ position:"relative", marginBottom:11 }}>
+            <Search size={13} color={C.gray400} style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)" }}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Rechercher..." style={{ width:"100%", paddingLeft:30, paddingRight:12, paddingTop:9, paddingBottom:9, borderRadius:9, border:`1.5px solid ${C.border}`, fontSize:13, color:C.navy, outline:"none", fontFamily:"inherit", boxSizing:"border-box" }} onFocus={e=>e.target.style.borderColor=C.teal} onBlur={e=>e.target.style.borderColor=C.border}/>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+            {pats.map(p=>{ const count=msgsOf(p).length; const sel=selP?.id===p.id; return (
+              <div key={p.id} onClick={()=>{ setSelP(p);setCompose(false);setSent(false); }} style={{ display:"flex", alignItems:"center", gap:11, padding:"11px 13px", borderRadius:10, cursor:"pointer", background:sel?C.tealLt:C.white, border:`1.5px solid ${sel?C.tealDk:C.border}`, transition:"all 0.15s" }}>
+                <Avatar name={`${p.prenom} ${p.nom}`} color={sel?C.tealDk:C.gray400} size={38}/>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:sel?C.navy:C.gray700 }}>{p.prenom} {p.nom}</div>
+                  <div style={{ fontSize:11, color:C.gray400, display:"flex", alignItems:"center", gap:3 }}><Phone size={10}/>{p.tel}</div>
+                </div>
+                {count>0&&<span style={{ fontSize:11, fontWeight:700, color:C.tealDk, background:C.tealLt, borderRadius:99, padding:"2px 7px" }}>{count}</span>}
+              </div>
+            );})}
+          </div>
+        </div>
+ 
+        {/* Right panel */}
+        <div>
+          {!selP&&<Card style={{ padding:"60px", textAlign:"center" }}><MessageSquare size={40} color={C.gray400} style={{ margin:"0 auto 14px", display:"block" }}/><div style={{ fontWeight:700, fontSize:15, color:C.navy, marginBottom:6 }}>Sélectionnez un patient</div><div style={{ color:C.gray500, fontSize:13 }}>Choisissez un patient pour voir ses messages ou en envoyer un nouveau.</div></Card>}
+ 
+          {selP&&!compose&&(
+            <div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:11 }}>
+                  <Avatar name={`${selP.prenom} ${selP.nom}`} color={C.tealDk} size={42}/>
+                  <div><div style={{ fontWeight:800, fontSize:15, color:C.navy }}>{selP.prenom} {selP.nom}</div><div style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:C.gray500 }}><Mail size={11}/>{selP.email}</div></div>
+                </div>
+                <Btn icon={PlusCircle} onClick={()=>{ setCompose(true);setSujet("");setCorps("");setTmpl(""); }}>Nouveau message</Btn>
+              </div>
+              {msgsOf(selP).length===0&&<Card style={{ padding:"40px", textAlign:"center" }}><Inbox size={28} color={C.gray400} style={{ margin:"0 auto 10px", display:"block" }}/><div style={{ color:C.gray500, fontSize:13 }}>Aucun message envoyé à ce patient.</div></Card>}
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {msgsOf(selP).map(msg=>(
+                  <Card key={msg.id} style={{ padding:"14px 17px" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:9 }}>
+                      <div><div style={{ fontWeight:700, fontSize:14, color:C.navy }}>{msg.sujet}</div><div style={{ fontSize:11, color:C.gray400, marginTop:2 }}>Envoyé le {msg.date}</div></div>
+                      <span style={{ fontSize:11, fontWeight:700, background:msg.lu?C.greenLt:C.amberLt, color:msg.lu?C.green:C.amber, borderRadius:99, padding:"3px 9px" }}>{msg.lu?"Lu":"Non lu"}</span>
+                    </div>
+                    <p style={{ margin:0, fontSize:13, color:C.gray700, lineHeight:1.6, padding:"10px 13px", background:C.gray50, borderRadius:8 }}>{msg.corps}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+ 
+          {selP&&compose&&(
+            <Card style={{ padding:"22px" }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+                <div style={{ fontWeight:800, fontSize:15, color:C.navy, fontFamily:"Georgia,serif" }}>
+                  Nouveau message — <span style={{ color:C.tealDk }}>{selP.prenom} {selP.nom}</span>
+                </div>
+                <button onClick={()=>setCompose(false)} style={{ border:"none", background:C.gray100, borderRadius:"50%", width:30, height:30, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}><X size={14} color={C.gray500}/></button>
+              </div>
+              {/* Template */}
+              <div style={{ marginBottom:14 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.7, marginBottom:7 }}>Modèle (optionnel)</label>
+                <div style={{ position:"relative" }}><FileText size={13} color={C.gray400} style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)" }}/><select value={tmpl} onChange={e=>applyTmpl(e.target.value)} style={{ width:"100%", paddingLeft:30, paddingRight:12, paddingTop:10, paddingBottom:10, borderRadius:9, border:`1.5px solid ${C.border}`, fontSize:13, color:C.gray700, background:C.white, fontFamily:"inherit", cursor:"pointer", outline:"none" }}><option value="">-- Choisir un modèle --</option>{TEMPLATES.map(t=><option key={t.label} value={t.label}>{t.label}</option>)}</select></div>
+              </div>
+              {/* Sujet */}
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.7, marginBottom:7 }}>Sujet *</label>
+                <input value={sujet} onChange={e=>setSujet(e.target.value)} placeholder="Objet du message..." style={{ width:"100%", padding:"10px 13px", borderRadius:9, border:`1.5px solid ${C.border}`, fontSize:14, color:C.navy, outline:"none", fontFamily:"inherit", boxSizing:"border-box", transition:"border 0.2s" }} onFocus={e=>e.target.style.borderColor=C.teal} onBlur={e=>e.target.style.borderColor=C.border}/>
+              </div>
+              {/* Corps */}
+              <div style={{ marginBottom:16 }}>
+                <label style={{ display:"block", fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.7, marginBottom:7 }}>Message *</label>
+                <textarea value={corps} onChange={e=>setCorps(e.target.value)} placeholder="Rédigez votre message..." rows={6} style={{ width:"100%", padding:"11px 13px", borderRadius:9, border:`1.5px solid ${C.border}`, fontSize:14, color:C.navy, outline:"none", fontFamily:"inherit", resize:"vertical", boxSizing:"border-box", lineHeight:1.6, transition:"border 0.2s" }} onFocus={e=>e.target.style.borderColor=C.teal} onBlur={e=>e.target.style.borderColor=C.border}/>
+              </div>
+              {sent&&<div style={{ background:C.greenLt, color:C.green, borderRadius:9, padding:"11px 14px", fontSize:13, fontWeight:700, marginBottom:14, display:"flex", alignItems:"center", gap:8 }}><CheckCircle size={15}/>Message envoyé avec succès !</div>}
+              <div style={{ display:"flex", gap:9 }}>
+                <Btn variant="ghost" onClick={()=>setCompose(false)} style={{ flex:1, padding:"11px" }}>Annuler</Btn>
+                <Btn variant="purple" icon={Send} onClick={handleSend} disabled={!sujet||!corps} style={{ flex:2, padding:"11px" }}>Envoyer le message</Btn>
+              </div>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// PROFIL
+// ─────────────────────────────────────────────────────
+const ProfilPage = ({ onLogout }) => {
+  const { user }=useAuth(); const rc=ROLES[user.role];
+  const fields=[["Nom",user.nom],["Prénom",user.prenom],["Email",user.email],...(user.role==="secretaire"?[["Poste",user.poste]]:[]),...(user.role==="medecin"?[["Spécialité",user.specialite]]:[]),...(user.role==="patient"?[["Téléphone",user.telephone],["Groupe sanguin",user.groupeSanguin]]:[])];
+  return (
+    <div>
+      <SectionTitle>Mon profil</SectionTitle>
+      <Card style={{ padding:"26px 22px", marginBottom:14, textAlign:"center" }}>
+        <div style={{ width:78, height:78, borderRadius:"50%", background:C.grad, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:28, margin:"0 auto 12px" }}>{user.prenom[0]}{user.nom[0]}</div>
+        <div style={{ fontSize:20, fontWeight:900, color:C.navy, fontFamily:"Georgia,serif" }}>{user.prenom} {user.nom}</div>
+        <span style={{ display:"inline-block", marginTop:8, background:rc.bg, color:rc.color, borderRadius:99, padding:"4px 16px", fontSize:12, fontWeight:700 }}>{rc.label}</span>
+      </Card>
+      <Card style={{ padding:"18px 22px", marginBottom:16 }}>
+        {fields.map(([k,v])=>(<div key={k} style={{ display:"flex", justifyContent:"space-between", padding:"11px 0", borderBottom:`1px solid ${C.border}`, fontSize:14 }}><span style={{ color:C.gray500, fontWeight:600 }}>{k}</span><span style={{ color:C.navy, fontWeight:700 }}>{v}</span></div>))}
+      </Card>
+      <Btn full variant="danger" onClick={onLogout} icon={LogOut}>Se déconnecter</Btn>
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// LOGIN
+// ─────────────────────────────────────────────────────
+const LoginPage = ({ onLogin }) => {
+  const [email,setEmail]=useState(""); const [pass,setPass]=useState(""); const [role,setRole]=useState("patient");
+  const [err,setErr]=useState(""); const [loading,setLoad]=useState(false);
+  const fillDemo=r=>{ setEmail(USERS_DB[r].email);setPass(USERS_DB[r].password);setRole(r);setErr(""); };
+  const submit=()=>{ setErr("");setLoad(true); setTimeout(()=>{ const u=USERS_DB[role]; if(u&&u.email===email&&u.password===pass) onLogin(u); else{setErr("Identifiants incorrects.");setLoad(false);} },700); };
+  return (
+    <div style={{ minHeight:"100vh", display:"flex", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
+      <div style={{ flex:1, background:C.grad, display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center", padding:48, position:"relative", overflow:"hidden" }}>
+        <div style={{ position:"absolute", top:-80, right:-80, width:300, height:300, borderRadius:"50%", background:"rgba(255,255,255,0.05)" }}/>
+        <div style={{ position:"relative", zIndex:1, textAlign:"center", color:"#fff", maxWidth:380 }}>
+          <Logo size={72}/>
+          <div style={{ marginTop:18, fontSize:12, letterSpacing:3, textTransform:"uppercase", opacity:0.7, fontWeight:600 }}>SIMPLIFIER · OPTIMISER · AMÉLIORER</div>
+          <div style={{ marginTop:40 }}>
+            {[["Prise de RDV en ligne","Réservez en quelques clics"],["Synchronisation en temps réel","Patient, Médecin et Secrétaire liés"],["Messagerie intégrée","Secrétaire contacte les patients directement"]].map(([t,s])=>(
+              <div key={t} style={{ display:"flex", gap:12, alignItems:"flex-start", marginBottom:18, textAlign:"left" }}>
+                <div style={{ width:34, height:34, borderRadius:9, background:"rgba(255,255,255,0.15)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:2 }}><CheckCircle size={17} color="#fff"/></div>
+                <div><div style={{ fontWeight:700, fontSize:14 }}>{t}</div><div style={{ fontSize:12, opacity:0.7, marginTop:2 }}>{s}</div></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div style={{ width:460, background:C.white, display:"flex", flexDirection:"column", justifyContent:"center", padding:"44px 40px", overflowY:"auto" }}>
+        <div style={{ marginBottom:28 }}><Logo size={34} full/></div>
+        <h2 style={{ margin:"0 0 5px", fontSize:24, fontWeight:900, color:C.navy, fontFamily:"Georgia,serif" }}>Connexion</h2>
+        <p style={{ margin:"0 0 26px", color:C.gray500, fontSize:14 }}>Accédez à votre espace personnel</p>
+        <div style={{ background:C.bg, borderRadius:10, padding:"13px 15px", marginBottom:22, border:`1px solid ${C.border}` }}>
+          <div style={{ fontSize:11, fontWeight:700, color:C.gray400, textTransform:"uppercase", letterSpacing:0.7, marginBottom:9 }}>Accès rapide (démo)</div>
+          <div style={{ display:"flex", gap:7 }}>{["patient","medecin","secretaire"].map(r=><button key={r} onClick={()=>fillDemo(r)} style={{ flex:1, padding:"9px 5px", borderRadius:9, border:`1.5px solid ${role===r?C.tealDk:C.border}`, background:role===r?C.tealLt:C.white, color:role===r?C.tealDk:C.gray500, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}>{ROLES[r].label}</button>)}</div>
+        </div>
+        {[["Email","email",email,setEmail,"votre@email.ma",User],["Mot de passe","password",pass,setPass,"••••••••",Shield]].map(([lbl,type,val,setter,ph,Ic])=>(
+          <div key={lbl} style={{ marginBottom:14 }}>
+            <label style={{ display:"block", fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.7, marginBottom:7 }}>{lbl}</label>
+            <div style={{ position:"relative" }}><Ic size={15} color={C.gray400} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)" }}/><input type={type} value={val} onChange={e=>setter(e.target.value)} placeholder={ph} style={{ width:"100%", paddingLeft:36, paddingRight:13, paddingTop:11, paddingBottom:11, borderRadius:9, border:`1.5px solid ${C.border}`, fontSize:14, color:C.navy, outline:"none", fontFamily:"inherit", boxSizing:"border-box", transition:"border 0.2s" }} onFocus={e=>e.target.style.borderColor=C.teal} onBlur={e=>e.target.style.borderColor=C.border}/></div>
+          </div>
+        ))}
+        <div style={{ marginBottom:20 }}>
+          <label style={{ display:"block", fontSize:11, fontWeight:700, color:C.gray500, textTransform:"uppercase", letterSpacing:0.7, marginBottom:7 }}>Rôle</label>
+          <div style={{ display:"flex", gap:7 }}>{["patient","medecin","secretaire"].map(r=><button key={r} onClick={()=>setRole(r)} style={{ flex:1, padding:"10px 5px", borderRadius:9, border:`1.5px solid ${role===r?C.tealDk:C.border}`, background:role===r?C.tealLt:C.white, color:role===r?C.tealDk:C.gray500, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}>{ROLES[r].label}</button>)}</div>
+        </div>
+        {err&&<div style={{ background:C.redLt, color:C.red, borderRadius:9, padding:"11px 13px", fontSize:13, fontWeight:600, marginBottom:14, display:"flex", gap:7, alignItems:"center" }}><AlertTriangle size={14}/>{err}</div>}
+        <button onClick={submit} style={{ width:"100%", padding:"13px", borderRadius:10, background:C.gradBtn, color:"#fff", fontWeight:800, fontSize:15, border:"none", cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", justifyContent:"center", gap:8 }} onMouseEnter={e=>{ e.currentTarget.style.opacity="0.88";e.currentTarget.style.transform="translateY(-1px)"; }} onMouseLeave={e=>{ e.currentTarget.style.opacity="1";e.currentTarget.style.transform="translateY(0)"; }}>
+          {loading?"Connexion...":(<><span>Se connecter</span><ArrowRight size={17}/></>)}
+        </button>
+      </div>
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// NAV
+// ─────────────────────────────────────────────────────
+const NAV = {
+  patient:    [{id:"home",label:"Accueil",Icon:Home},{id:"rdv",label:"Mes RDV",Icon:Calendar},{id:"profil",label:"Profil",Icon:User}],
+  medecin:    [{id:"home",label:"Accueil",Icon:Home},{id:"planning",label:"Planning",Icon:Calendar},{id:"profil",label:"Profil",Icon:User}],
+  secretaire: [{id:"home",label:"Dashboard",Icon:LayoutDashboard},{id:"planning",label:"Planning",Icon:ClipboardList},{id:"messagerie",label:"Messagerie",Icon:MessageSquare},{id:"profil",label:"Profil",Icon:User}],
+};
+ 
+// ─────────────────────────────────────────────────────
+// APP LAYOUT
+// ─────────────────────────────────────────────────────
+const AppLayout = ({ onLogout }) => {
+  const { user }=useAuth(); const { messages }=useApp();
+  const isMobile=useMobile();
+  const [page,setPage]=useState("home");
+  const navItems=NAV[user.role]||[];
+  const unreadPatient=messages.filter(m=>!m.lu&&m.to_patient_id===user.patient_id).length;
+ 
+  const renderPage=()=>{
+    if(page==="profil") return <ProfilPage onLogout={onLogout}/>;
+    if(user.role==="patient"){ if(page==="rdv") return <PatientRdvPage user={user}/>; return <PatientAccueil user={user}/>; }
+    if(user.role==="medecin"){ if(page==="planning") return <MedecinPlanning user={user}/>; return <MedecinAccueil user={user}/>; }
+    if(user.role==="secretaire"){ if(page==="planning") return <SecretairePlanning/>; if(page==="messagerie") return <SecretaireMessagerie/>; return <SecretaireDashboard onNavigate={setPage}/>; }
+  };
+ 
+  return (
+    <div style={{ minHeight:"100vh", background:C.bg, fontFamily:"'Segoe UI',system-ui,sans-serif", display:"flex", flexDirection:"column" }}>
+      <header style={{ background:C.white, borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, zIndex:200, boxShadow:"0 1px 8px rgba(0,0,0,0.04)" }}>
+        <div style={{ maxWidth:1200, margin:"0 auto", padding:"0 24px", height:64, display:"flex", alignItems:"center", gap:20 }}>
+          <Logo size={32} full={!isMobile}/>
+          {!isMobile&&(
+            <nav style={{ display:"flex", gap:3, marginLeft:14 }}>
+              {navItems.map(item=>{ const active=page===item.id; return (
+                <button key={item.id} onClick={()=>setPage(item.id)} style={{ position:"relative", display:"flex", alignItems:"center", gap:7, padding:"8px 15px", borderRadius:8, border:"none", background:active?C.tealLt:"transparent", color:active?C.tealDk:C.gray500, fontWeight:active?700:500, fontSize:14, cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}>
+                  <item.Icon size={15} strokeWidth={active?2.2:1.8}/>{item.label}
+                  {item.id==="rdv"&&unreadPatient>0&&<span style={{ position:"absolute", top:5, right:5, width:8, height:8, borderRadius:"50%", background:C.red }}/>}
+                </button>
+              );})}
+            </nav>
+          )}
+          <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:10 }}>
+            {!isMobile&&<span style={{ fontSize:13, color:C.gray500, fontWeight:600 }}>{user.prenom} {user.nom}</span>}
+            <div style={{ width:36, height:36, borderRadius:"50%", background:C.grad, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:800, fontSize:12, cursor:"pointer" }} onClick={()=>setPage("profil")}>{user.prenom[0]}{user.nom[0]}</div>
+            {!isMobile&&<button onClick={onLogout} style={{ display:"flex", alignItems:"center", gap:6, padding:"7px 13px", borderRadius:8, border:`1px solid ${C.border}`, background:C.white, color:C.gray500, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}><LogOut size={13}/>Déconnexion</button>}
+          </div>
+        </div>
+      </header>
+      <main style={{ flex:1, maxWidth:1200, margin:"0 auto", width:"100%", padding:isMobile?"14px 12px 82px":"26px 24px", boxSizing:"border-box" }}>
+        {renderPage()}
+      </main>
+      {isMobile&&(
+        <nav style={{ position:"fixed", bottom:0, left:0, right:0, background:C.white, borderTop:`1px solid ${C.border}`, display:"flex", zIndex:200, boxShadow:"0 -2px 12px rgba(0,0,0,0.07)" }}>
+          {navItems.map(item=>{ const active=page===item.id; return (
+            <button key={item.id} onClick={()=>setPage(item.id)} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:"9px 0 11px", border:"none", background:"transparent", cursor:"pointer", fontFamily:"inherit", position:"relative" }}>
+              <div style={{ width:32, height:28, borderRadius:8, background:active?C.tealLt:"transparent", display:"flex", alignItems:"center", justifyContent:"center", transition:"all 0.15s" }}><item.Icon size={18} color={active?C.tealDk:C.gray400} strokeWidth={active?2.2:1.8}/></div>
+              <span style={{ fontSize:9, fontWeight:active?800:500, color:active?C.tealDk:C.gray400 }}>{item.label}</span>
+              {item.id==="rdv"&&unreadPatient>0&&<span style={{ position:"absolute", top:7, right:"25%", width:8, height:8, borderRadius:"50%", background:C.red }}/>}
+            </button>
+          );})}
+        </nav>
+      )}
+    </div>
+  );
+};
+ 
+// ─────────────────────────────────────────────────────
+// ROOT — SHARED STATE PROVIDER
+// ─────────────────────────────────────────────────────
+export default function App() {
+  const [user,setUser]=useState(null);
+ 
+  // Single source of truth — shared across ALL roles
+  const [rdvs,setRdvs]=useState(INIT_RDV);
+  const [messages,setMessages]=useState(INIT_MSGS);
+ 
+  const addRdv      = useCallback(r    => setRdvs(p=>[...p,{...r,id:p.length+1,arrivee:"en attente"}]),[]);
+  const validateRdv = useCallback(id   => setRdvs(p=>p.map(r=>r.id===id?{...r,statut:"confirmé"}:r)),[]);
+  const annulerRdv  = useCallback(id   => setRdvs(p=>p.map(r=>r.id===id?{...r,statut:"annulé"}:r)),[]);
+  const reporterRdv = useCallback((id,d)=>setRdvs(p=>p.map(r=>r.id===id?{...r,date:d,statut:"reporté"}:r)),[]);
+  const setArrivee  = useCallback((id,a)=>setRdvs(p=>p.map(r=>r.id===id?{...r,arrivee:a}:r)),[]);
+  const today=new Date().toISOString().split("T")[0];
+  const sendMessage = useCallback(({to_patient_id,sujet,corps})=>setMessages(p=>[...p,{id:p.length+1,from:"secretaire",to_patient_id,sujet,corps,date:today,lu:false}]),[today]);
+  const markMsgRead = useCallback(id   => setMessages(p=>p.map(m=>m.id===id?{...m,lu:true}:m)),[]);
+ 
+  const appValue={ rdvs, addRdv, validateRdv, annulerRdv, reporterRdv, setArrivee, messages, sendMessage, markMsgRead };
+ 
+  return (
+    <AuthCtx.Provider value={{ user, login:setUser, logout:()=>setUser(null) }}>
+      <AppCtx.Provider value={appValue}>
+        {!user?<LoginPage onLogin={setUser}/>:<AppLayout onLogout={()=>setUser(null)}/>}
+      </AppCtx.Provider>
+    </AuthCtx.Provider>
+  );
+}
