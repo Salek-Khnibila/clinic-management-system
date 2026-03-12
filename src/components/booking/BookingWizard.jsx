@@ -3,6 +3,7 @@ import {
   ArrowRight,
   Calendar,
   CheckCircle,
+  ChevronLeft,
   Clock,
 } from "lucide-react";
 import { C } from "../../constants/designTokens.js";

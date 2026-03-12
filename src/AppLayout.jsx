@@ -12,6 +12,7 @@ import { MedecinAccueil } from "./pages/medecin/MedecinAccueil.jsx";
 import { MedecinPlanning } from "./pages/medecin/MedecinPlanning.jsx";
 import { SecretaireDashboard } from "./pages/secretaire/SecretaireDashboard.jsx";
 import { SecretairePlanning } from "./pages/secretaire/SecretairePlanning.jsx";
+import { SecretaireMessagerie } from "./pages/secretaire/SecretaireMessagerie.jsx";
 import { ProfilPage } from "./pages/ProfilPage.jsx";
 
 export const AppLayout = ({ onLogout }) => {
@@ -41,7 +42,6 @@ export const AppLayout = ({ onLogout }) => {
     if (user.role === "secretaire") {
       if (page === "planning") return <SecretairePlanning />;
       if (page === "messagerie") {
-        const { SecretaireMessagerie } = require("./pages/secretaire/SecretaireMessagerie.jsx");
         return <SecretaireMessagerie />;
       }
       return <SecretaireDashboard onNavigate={setPage} />;
