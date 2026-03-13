@@ -3,13 +3,15 @@ from datetime import datetime
 import os
 from functools import wraps
 
-# Configuration des logs
+# Créer le dossier de logs s'il n'existe pas
+os.makedirs('logs', exist_ok=True)
+
+# Configuration des logs (temporairement sans fichier)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('backend/logs/security.log'),
-        logging.StreamHandler()
+        logging.StreamHandler()  # Uniquement console pour le moment
     ]
 )
 
@@ -174,4 +176,4 @@ def detect_brute_force(ip_address, max_attempts=5, window_minutes=15):
     return False  # Placeholder
 
 # Créer le dossier de logs s'il n'existe pas
-os.makedirs('backend/logs', exist_ok=True)
+os.makedirs('logs', exist_ok=True)
