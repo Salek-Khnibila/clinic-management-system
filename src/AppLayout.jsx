@@ -6,6 +6,7 @@ import { useAuth } from "./contexts/AuthContext.jsx";
 import { useApp } from "./contexts/AppContext.jsx";
 import { useMobile } from "./hooks/useMobile.js";
 import { Logo } from "./components/ui/Logo.jsx";
+import { LoadingSpinner } from "./components/ui/LoadingSpinner.jsx";
 import { PatientAccueil } from "./pages/patient/PatientAccueil.jsx";
 import { PatientRdvPage } from "./pages/patient/PatientRdvPage.jsx";
 import { MedecinAccueil } from "./pages/medecin/MedecinAccueil.jsx";
@@ -16,10 +17,28 @@ import { SecretaireMessagerie } from "./pages/secretaire/SecretaireMessagerie.js
 import { ProfilPage } from "./pages/ProfilPage.jsx";
 
 export const AppLayout = ({ onLogout }) => {
-  const { user } = useAuth();
-  const { messages } = useApp();
+  const { user, loading: authLoading } = useAuth();
+  const { messages, loading: appLoading } = useApp();
   const isMobile = useMobile();
   const [page, setPage] = useState("home");
+
+  // Show loading spinner while initializing
+  if (authLoading || appLoading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: C.bg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "'Segoe UI',system-ui,sans-serif",
+        }}
+      >
+        <LoadingSpinner size={60} text="Initialisation de l'application..." />
+      </div>
+    );
+  }
 
   const navItems = NAV[user.role] || [];
   const unreadPatient = messages.filter(

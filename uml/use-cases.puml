@@ -1,0 +1,43 @@
+@startuml
+!theme plain
+skinparam monochrome true
+
+'============================================
+' Diagramme de Cas d'Utilisation
+'============================================
+
+actor Patient
+actor Medecin
+actor Secretaire
+rectangle "Système de Gestion Clinique" {
+  usecase "S'authentifier" as UC1
+  usecase "Prendre rendez-vous" as UC2
+  usecase "Consulter planning" as UC3
+  usecase "Annuler rendez-vous" as UC4
+  usecase "Envoyer message" as UC5
+  usecase "Consulter messages" as UC6
+  usecase "Valider rendez-vous" as UC7
+  usecase "Gérer disponibilités" as UC8
+  usecase "Gérer patients" as UC9
+  usecase "Voir fiches médicales" as UC10
+}
+
+Patient --> UC1 : login
+Patient --> UC2 : book appointment
+Patient --> UC3 : view schedule
+Patient --> UC4 : cancel appointment
+Patient --> UC6 : read messages
+
+Medecin --> UC1 : login
+Medecin --> UC3 : view schedule
+Medecin --> UC7 : validate appointment
+Medecin --> UC8 : manage availability
+Medecin --> UC10 : view medical records
+
+Secretaire --> UC1 : login
+Secretaire --> UC3 : view all schedules
+Secretaire --> UC5 : send message
+Secretaire --> UC7 : validate appointment
+Secretaire --> UC9 : manage patients
+
+@enduml

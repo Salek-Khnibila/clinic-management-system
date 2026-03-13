@@ -1,0 +1,44 @@
+@startuml
+!theme plain
+skinparam monochrome true
+
+'============================================
+' Diagramme de Séquence - Authentification
+'============================================
+
+actor User
+actor "Frontend React" as Frontend
+actor "API Auth" as API
+database "User DB" as DB
+
+User -> Frontend: Entre identifiants
+activate Frontend
+
+Frontend -> Frontend: Valide formulaire
+Frontend -> API: POST /auth/login
+activate API
+
+API -> API: Hash password
+API -> DB: SELECT * FROM users WHERE email = ?
+activate DB
+DB --> API: User data (if exists)
+deactivate DB
+
+API -> API: Verify password hash
+alt Password correct
+    API -> API: Generate JWT tokens
+    API -> Frontend: Return user + tokens
+    activate Frontend
+    
+    Frontend -> Frontend: Store tokens in localStorage
+    Frontend -> Frontend: Update user context
+    Frontend -> User: Redirige vers dashboard
+    deactivate Frontend
+else Password incorrect
+    API -> Frontend: Return error 401
+    Frontend -> User: Affiche erreur "Identifiants incorrects"
+end
+
+deactivate API
+
+@enduml
