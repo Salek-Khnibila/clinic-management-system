@@ -1,5 +1,5 @@
-import React from 'react';
-import { C } from '../constants/designTokens.js';
+import React from "react";
+import { C } from "../../constants/designTokens.js";
 
 export const LoadingSpinner = ({ size = 40, text = "Chargement..." }) => (
   <div
@@ -33,13 +33,3 @@ export const LoadingSpinner = ({ size = 40, text = "Chargement..." }) => (
     </div>
   </div>
 );
-
-// Add CSS animation
-const style = document.createElement('style');
-style.textContent = `
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-`;
-document.head.appendChild(style);

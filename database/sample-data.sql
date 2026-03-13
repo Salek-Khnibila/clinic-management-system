@@ -5,12 +5,12 @@
 USE gestion_clinique;
 
 -- Insert sample users (passwords are bcrypt hashes for "1234")
-INSERT INTO users (prenom, nom, email, password, role, telephone, groupe_sanguin) VALUES
-('Ahmed', 'Alami', 'patient@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'patient', '0612 345 678', 'A+'),
-('Sara', 'Benali', 'sara@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'patient', '0698 765 432', 'B+'),
-('Hassan', 'Karim', 'medecin@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q', 'medecin', NULL, NULL, 'Cardiologie', 'Casablanca', '300 MAD', '15 ans', 4.8, 124, TRUE),
-('Laila', 'Mansouri', 'laila@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q', 'medecin', NULL, NULL, 'Pédiatrie', 'Rabat', '250 MAD', '10 ans', 4.9, 89, TRUE),
-('Samira', 'Benali', 'secretaire@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q', 'secretaire', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, FALSE);
+INSERT INTO users (prenom, nom, email, password, role, telephone, groupe_sanguin, specialite, ville, tarif, experience, note, avis, dispo) VALUES
+('Ahmed', 'Alami', 'patient@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'patient', '0612 345 678', 'A+', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+('Sara', 'Benali', 'sara@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'patient', '0698 765 432', 'B+', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+('Hassan', 'Karim', 'medecin@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'medecin', NULL, NULL, 'Cardiologie', 'Casablanca', '300 MAD', '15 ans', 4.8, 124, TRUE),
+('Laila', 'Mansouri', 'laila@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'medecin', NULL, NULL, 'Pédiatrie', 'Rabat', '250 MAD', '10 ans', 4.9, 89, TRUE),
+('Samira', 'Benali', 'secretaire@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'secretaire', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, FALSE);
 
 -- Insert sample appointments
 INSERT INTO appointments (date, heure, motif, statut, patient_id, medecin_id, arrivee) VALUES
