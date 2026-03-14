@@ -65,15 +65,11 @@ export const authService = {
 
   // Refresh token
   refreshToken: async () => {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      const response = await api.post('/auth/refresh', { refreshToken });
-      const { token } = response.data;
-      localStorage.setItem('token', token);
-      return token;
-    } catch (error) {
-      throw error;
-    }
+    const refreshToken = localStorage.getItem('refreshToken');
+    const response = await api.post('/auth/refresh', { refreshToken });
+    const { token } = response.data;
+    localStorage.setItem('token', token);
+    return token;
   },
 
   // Request password reset

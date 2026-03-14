@@ -267,7 +267,7 @@ export const BookingWizard = ({ med, onClose, onConfirm }) => {
               disabled={!date}
               icon={ArrowRight}
             >
-              Choisir l'heure
+              Choisir l&apos;heure
             </Btn>
           </div>
         </div>

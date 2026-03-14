@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, g
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import mysql.connector
-from mysql.connector import Error
 import bcrypt
 import os
 from datetime import timedelta
@@ -15,6 +14,9 @@ from security_utils import (
 
 load_dotenv()
 
+print(f"CWD: {os.getcwd()}")
+print(f"DB_PASSWORD: {os.getenv('DB_PASSWORD')}")
+
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET', 'votre-secret-key-here')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
@@ -25,18 +27,19 @@ jwt = JWTManager(app)
 
 # Database configuration
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'database': os.getenv('DB_NAME', 'gestion_clinique'),
-    'user': os.getenv('DB_USER', 'root'),
-    'password': os.getenv('DB_PASSWORD', ''),
-    'port': int(os.getenv('DB_PORT', 3306))
+    'host': '127.0.0.1',
+    'user': 'root',
+    'password': 'root0000',
+    'database': 'gestion_clinique',
+    'port': 3306
 }
 
 def get_db_connection():
     try:
         connection = mysql.connector.connect(**DB_CONFIG)
+        print(f"Connected to DB: {DB_CONFIG['database']}")  # Debug
         return connection
-    except Error as e:
+    except Exception as e:
         print(f"Database connection error: {e}")
         return None
 
@@ -47,7 +50,7 @@ def execute_query(query, params=None, fetch_one=False):
     
     try:
         cursor = connection.cursor(dictionary=True)
-        cursor.execute(query, params)
+        cursor.execute(query, params or [])
         
         if query.strip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')):
             connection.commit()
@@ -57,7 +60,7 @@ def execute_query(query, params=None, fetch_one=False):
         
         cursor.close()
         return result
-    except Error as e:
+    except Exception as e:
         print(f"Query execution error: {e}")
         return None
     finally:
@@ -216,7 +219,6 @@ def create_appointment():
 
 # Routes pour les médecins
 @app.route('/api/doctors', methods=['GET'])
-@jwt_required()
 def get_doctors():
     try:
         query = """

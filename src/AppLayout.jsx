@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { C } from "./constants/designTokens.js";
 import { NAV } from "./constants/nav.js";

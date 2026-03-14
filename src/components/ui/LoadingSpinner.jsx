@@ -1,4 +1,3 @@
-import React from "react";
 import { C } from "../../constants/designTokens.js";
 
 export const LoadingSpinner = ({ size = 40, text = "Chargement..." }) => (

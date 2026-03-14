@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
-  Calendar,
   Clock,
   Inbox,
   MapPin,
@@ -12,7 +11,6 @@ import { C } from "../../constants/designTokens.js";
 import {
   MEDECINS_DB,
   MONTHS,
-  PATIENTS_DB,
   SPECS,
   VILLES,
 } from "../../constants/data.js";
@@ -21,7 +19,6 @@ import { useApp } from "../../contexts/AppContext.jsx";
 import { BookingWizard } from "../../components/booking/BookingWizard.jsx";
 import { DoctorCard } from "../../components/doctor/DoctorCard.jsx";
 import {
-  Btn,
   Card,
   Modal,
   SectionTitle,

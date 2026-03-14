@@ -1,5 +1,4 @@
-import React from "react";
-import { AlertTriangle, ArrowRight, Calendar, Clock, ClipboardList, Stethoscope, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, Calendar, Clock, Stethoscope, Users } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 import { MEDECINS_DB, PATIENTS_DB } from "../../constants/data.js";
 import { useApp } from "../../contexts/AppContext.jsx";
@@ -42,7 +41,7 @@ export const SecretaireDashboard = ({ onNavigate }) => {
           Tableau de bord
         </h1>
         <p style={{ margin: 0, opacity: 0.75, fontSize: 13 }}>
-          Vue d'ensemble du cabinet médical
+          Vue d&apos;ensemble du cabinet médical
         </p>
       </div>
 

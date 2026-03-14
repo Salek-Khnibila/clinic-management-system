@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle, Shield, User } from "lucide-react";
 import { C } from "../constants/designTokens.js";
 import { ROLES } from "../constants/status.js";
@@ -6,13 +6,12 @@ import { USERS_DB } from "../constants/data.js";
 import { Logo } from "../components/ui/Logo.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
-export const LoginPage = ({ onLogin }) => {
+export const LoginPage = () => {
   const { login, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [role, setRole] = useState("patient");
   const [err, setErr] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   const fillDemo = (r) => {
     setEmail(USERS_DB[r].email);
@@ -27,7 +26,6 @@ export const LoginPage = ({ onLogin }) => {
       return;
     }
 
-    setIsLoading(true);
     setErr("");
 
     try {
@@ -39,8 +37,6 @@ export const LoginPage = ({ onLogin }) => {
       }
     } catch (error) {
       setErr("Une erreur est survenue. Veuillez réessayer.");
-    } finally {
-      setIsLoading(false);
     }
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Bell, Clock, FileText, Heart, Phone, Stethoscope, Users } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 import { PATIENTS_DB } from "../../constants/data.js";
@@ -117,7 +117,7 @@ export const MedecinAccueil = ({ user }) => {
             color={C.gray400}
             style={{ margin: "0 auto 12px", display: "block" }}
           />
-          <div style={{ color: C.gray500 }}>Aucun patient aujourd'hui.</div>
+          <div style={{ color: C.gray500 }}>Aucun patient aujourd&apos;hui.</div>
         </Card>
       )}
 

@@ -12,11 +12,13 @@ export class BaseDAO {
   }
 
   // CRUD operations that all entities should have
-  async create(data) {
+  // eslint-disable-next-line no-unused-vars
+  async create(_data) {
     throw new Error('create() must be implemented by subclass');
   }
 
-  async findById(id) {
+  // eslint-disable-next-line no-unused-vars
+  async findById(_id) {
     throw new Error('findById() must be implemented by subclass');
   }
 
@@ -24,11 +26,13 @@ export class BaseDAO {
     throw new Error('findAll() must be implemented by subclass');
   }
 
-  async update(id, data) {
+  // eslint-disable-next-line no-unused-vars
+  async update(_id, _data) {
     throw new Error('update() must be implemented by subclass');
   }
 
-  async delete(id) {
+  // eslint-disable-next-line no-unused-vars
+  async delete(_id) {
     throw new Error('delete() must be implemented by subclass');
   }
 

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Calendar, Clock } from "lucide-react";
+import { useState } from "react";
+import { Calendar } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 import { PATIENTS_DB } from "../../constants/data.js";
 import { useApp } from "../../contexts/AppContext.jsx";

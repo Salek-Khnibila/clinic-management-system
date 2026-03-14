@@ -1,26 +1,26 @@
--- ============================================
--- Sample Data Insertion
--- ============================================
+-- Sample Data for Gestion Clinique
 
 USE gestion_clinique;
 
--- Insert sample users (passwords are bcrypt hashes for "1234")
-INSERT INTO users (prenom, nom, email, password, role, telephone, groupe_sanguin, specialite, ville, tarif, experience, note, avis, dispo, created_at, updated_at) VALUES
-('Ahmed', 'Alami', 'patient@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'patient', '0612 345 678', 'A+', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
-('Sara', 'Benali', 'sara@gmail.com', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'patient', '0698 765 432', 'B+', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NOW(), NOW()),
-('Hassan', 'Karim', 'medecin@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'medecin', NULL, NULL, 'Cardiologie', 'Casablanca', '300 MAD', '15 ans', 4.8, 124, 1, NOW(), NOW()),
-('Laila', 'Mansouri', 'laila@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'medecin', NULL, NULL, 'Pédiatrie', 'Rabat', '250 MAD', '10 ans', 4.9, 89, 1, NOW(), NOW()),
-('Samira', 'Benali', 'secretaire@clinique.ma', '$2b$12$LQv3c1yqBWVHxkd0LdQaO6q9q9q9q9q9q9q9q9q9q9q9q9q', 'secretaire', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NOW(), NOW());
+-- Clear existing data
+DELETE FROM messages;
+DELETE FROM appointments;
+DELETE FROM users;
 
--- Insert sample appointments
-INSERT INTO appointments (date, heure, motif, statut, patient_id, medecin_id, arrivee, created_at, updated_at) VALUES
-('2025-03-10', '09:00', 'Douleur thoracique', 'confirmé', 1, 3, 'en salle', NOW(), NOW()),
-('2025-03-10', '10:30', 'Suivi tension', 'confirmé', 2, 3, 'en attente', NOW(), NOW()),
-('2025-03-11', '14:00', 'Fièvre enfant', 'en attente', 3, 4, 'absent', NOW(), NOW()),
-('2025-03-12', '11:00', 'Contrôle annuel', 'confirmé', 4, 3, 'en attente', NOW(), NOW()),
-('2025-03-13', '15:30', 'Bilan cardiaque', 'annulé', 1, 3, 'absent', NOW(), NOW());
+-- Insert users
+INSERT INTO users (prenom, nom, email, password, role, telephone, groupe_sanguin, specialite, ville, tarif, experience, note, avis, dispo) VALUES
+('Admin', 'System', 'admin@gestionclinique.com', '$2b$12$zHJMgbQfRrRubHBZ5iYrx.KmMuL6bJt5kZ7XRA91iMXHgCOwn1Aby', 'secretaire', '0612345678', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+('Dr', 'Smith', 'dr.smith@gestionclinique.com', '$2b$12$CXxNZWGhyOVzFhSL.NrcVuiRR0RZQ7Mo6SD4axgozver7XM7ty4WG', 'medecin', '0612345679', NULL, 'Cardiologie', 'Casablanca', '300 MAD', 10, 4.5, 25, 'Lundi-Vendredi'),
+('Dr', 'Johnson', 'dr.johnson@gestionclinique.com', '$2b$12$CXxNZWGhyOVzFhSL.NrcVuiRR0RZQ7Mo6SD4axgozver7XM7ty4WG', 'medecin', '0612345680', NULL, 'Dermatologie', 'Rabat', '250 MAD', 8, 4.2, 18, 'Mardi-Samedi'),
+('Alice', 'Dupont', 'alice.dupont@email.com', '$2b$12$1SOF/aoH1zj1EZ1l9U.ISOabpebK0MokwiLdopRKnv3ggyqzTV6W.', 'patient', '0612345681', 'AB+', NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+('Bob', 'Martin', 'bob.martin@email.com', '$2b$12$1SOF/aoH1zj1EZ1l9U.ISOabpebK0MokwiLdopRKnv3ggyqzTV6W.', 'patient', '0612345682', 'O-', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
--- Insert sample messages
-INSERT INTO messages (`from`, to_patient_id, sujet, corps, date, lu, created_at, updated_at) VALUES
-('secretaire', 1, 'Rappel RDV', 'Bonjour Ahmed, nous vous rappelons votre rendez-vous demain à 09h00 avec Dr. Karim. Merci de confirmer votre présence.', '2025-03-09', TRUE, NOW(), NOW()),
-('secretaire', 2, 'RDV confirmé', 'Bonjour Sara, votre rendez-vous du 10 mars à 10h30 avec Dr. Karim est bien confirmé.', '2025-03-08', FALSE, NOW(), NOW());
+-- Insert appointments
+INSERT INTO appointments (patient_id, medecin_id, date, heure, motif, statut) VALUES
+(4, 2, '2025-03-15', '09:00', 'Consultation cardiologique', 'confirmé'),
+(5, 3, '2025-03-16', '14:00', 'Consultation dermatologique', 'en attente');
+
+-- Insert messages
+INSERT INTO messages (`from`, to_patient_id, sujet, corps, date) VALUES
+('secretaire', 4, 'Rappel RDV', 'Rappel de votre rendez-vous.', '2025-03-13'),
+('secretaire', 5, 'Confirmation', 'RDV confirmé.', '2025-03-13');

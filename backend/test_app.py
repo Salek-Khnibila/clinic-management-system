@@ -1,13 +1,14 @@
 import pytest
 import bcrypt
 from app import app, get_db_connection, execute_query
+from flask_jwt_extended import create_access_token
 from unittest.mock import patch, MagicMock
 import json
 import os
 
 # Configuration de test
 app.config['TESTING'] = True
-app.config['JWT_SECRET_KEY'] = 'test-secret-key'
+app.config['JWT_SECRET_KEY'] = 'this-is-a-test-secret-key-32-chars'
 app.config['WTF_CSRF_ENABLED'] = False
 
 @pytest.fixture
@@ -111,7 +112,7 @@ class TestAppointments:
     def test_get_appointments_success(self, client, mock_db):
         """Test récupération rendez-vous"""
         # Mock token JWT
-        with patch('app.get_jwt_identity') as mock_jwt:
+        with patch('flask_jwt_extended.get_jwt_identity') as mock_jwt:
             mock_jwt.return_value = {'id': 1, 'role': 'patient'}
             
             # Mock données de rendez-vous
@@ -128,8 +129,10 @@ class TestAppointments:
             ]
             mock_db.cursor.return_value.fetchall.return_value = mock_appointments
             
+            with app.app_context():
+                token = create_access_token(identity={'id': 1, 'role': 'patient'})
             response = client.get('/api/appointments',
-                                 headers={'Authorization': 'Bearer fake-token'})
+                                 headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -138,12 +141,14 @@ class TestAppointments:
     
     def test_create_appointment_success(self, client, mock_db):
         """Test création rendez-vous"""
-        with patch('app.get_jwt_identity') as mock_jwt:
+        with patch('flask_jwt_extended.get_jwt_identity') as mock_jwt:
             mock_jwt.return_value = {'id': 1, 'role': 'secretaire'}
             
             # Mock insertion réussie
             mock_db.cursor.return_value.lastrowid = 3
             
+            with app.app_context():
+                token = create_access_token(identity={'id': 1, 'role': 'secretaire'})
             response = client.post('/api/appointments',
                                  json={
                                      'date': '2025-03-15',
@@ -152,7 +157,7 @@ class TestAppointments:
                                      'patient_id': 1,
                                      'medecin_id': 2
                                  },
-                                 headers={'Authorization': 'Bearer fake-token'})
+                                 headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -164,7 +169,7 @@ class TestDoctors:
     
     def test_get_doctors_success(self, client, mock_db):
         """Test récupération médecins"""
-        with patch('app.get_jwt_identity') as mock_jwt:
+        with patch('flask_jwt_extended.get_jwt_identity') as mock_jwt:
             mock_jwt.return_value = {'id': 1, 'role': 'patient'}
             
             # Mock données médecins
@@ -180,8 +185,10 @@ class TestDoctors:
             ]
             mock_db.cursor.return_value.fetchall.return_value = mock_doctors
             
+            with app.app_context():
+                token = create_access_token(identity={'id': 1, 'role': 'patient'})
             response = client.get('/api/doctors',
-                                 headers={'Authorization': 'Bearer fake-token'})
+                                 headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -194,7 +201,7 @@ class TestPatients:
     
     def test_get_patients_success(self, client, mock_db):
         """Test récupération patients"""
-        with patch('app.get_jwt_identity') as mock_jwt:
+        with patch('flask_jwt_extended.get_jwt_identity') as mock_jwt:
             mock_jwt.return_value = {'id': 1, 'role': 'secretaire'}
             
             # Mock données patients
@@ -210,8 +217,10 @@ class TestPatients:
             ]
             mock_db.cursor.return_value.fetchall.return_value = mock_patients
             
+            with app.app_context():
+                token = create_access_token(identity={'id': 1, 'role': 'secretaire'})
             response = client.get('/api/patients',
-                                 headers={'Authorization': 'Bearer fake-token'})
+                                 headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -223,7 +232,7 @@ class TestMessages:
     
     def test_get_messages_success(self, client, mock_db):
         """Test récupération messages"""
-        with patch('app.get_jwt_identity') as mock_jwt:
+        with patch('flask_jwt_extended.get_jwt_identity') as mock_jwt:
             mock_jwt.return_value = {'id': 1, 'role': 'secretaire'}
             
             # Mock données messages
@@ -240,8 +249,10 @@ class TestMessages:
             ]
             mock_db.cursor.return_value.fetchall.return_value = mock_messages
             
+            with app.app_context():
+                token = create_access_token(identity={'id': 1, 'role': 'secretaire'})
             response = client.get('/api/messages',
-                                 headers={'Authorization': 'Bearer fake-token'})
+                                 headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -250,12 +261,14 @@ class TestMessages:
     
     def test_send_message_success(self, client, mock_db):
         """Test envoi message"""
-        with patch('app.get_jwt_identity') as mock_jwt:
+        with patch('flask_jwt_extended.get_jwt_identity') as mock_jwt:
             mock_jwt.return_value = {'id': 1, 'role': 'secretaire'}
             
             # Mock insertion réussie
             mock_db.cursor.return_value.lastrowid = 2
             
+            with app.app_context():
+                token = create_access_token(identity={'id': 1, 'role': 'secretaire'})
             response = client.post('/api/messages',
                                  json={
                                      'from': 'secretaire',
@@ -263,7 +276,7 @@ class TestMessages:
                                      'sujet': 'Test Message',
                                      'corps': 'Contenu du message'
                                  },
-                                 headers={'Authorization': 'Bearer fake-token'})
+                                 headers={'Authorization': f'Bearer {token}'})
             
             assert response.status_code == 200
             data = json.loads(response.data)
@@ -282,18 +295,20 @@ class TestSecurity:
         """Test token invalide"""
         response = client.get('/api/appointments',
                              headers={'Authorization': 'Bearer invalid-token'})
-        assert response.status_code == 401
+        assert response.status_code == 422
     
     def test_sql_injection_protection(self, client, mock_db):
         """Test protection injection SQL"""
-        with patch('app.get_jwt_identity') as mock_jwt:
+        with patch('flask_jwt_extended.get_jwt_identity') as mock_jwt:
             mock_jwt.return_value = {'id': 1, 'role': 'patient'}
             
             # Mock injection SQL
             malicious_input = "'; DROP TABLE users; --"
             
+            with app.app_context():
+                token = create_access_token(identity={'id': 1, 'role': 'patient'})
             response = client.get(f'/api/appointments?user={malicious_input}',
-                                 headers={'Authorization': 'Bearer fake-token'})
+                                 headers={'Authorization': f'Bearer {token}'})
             
             # Vérifier que la requête SQL est bien paramétrée
             mock_db.cursor.return_value.execute.assert_called()

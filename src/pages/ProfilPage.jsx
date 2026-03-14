@@ -1,4 +1,3 @@
-import React from "react";
 import { LogOut } from "lucide-react";
 import { C } from "../constants/designTokens.js";
 import { ROLES } from "../constants/status.js";
