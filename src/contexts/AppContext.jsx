@@ -23,7 +23,7 @@ export const AppProvider = ({ children }) => {
           appointmentService.getAll(),
           doctorService.getAll(),
           patientService.getAll(),
-          messageService.getAll(),
+          messageService.getAllMessages(),
         ]);
 
         if (appointmentsRes.success) setRdvs(appointmentsRes.data || []);
@@ -85,7 +85,8 @@ export const AppProvider = ({ children }) => {
   const annulerRdv = useCallback(
     async (id) => {
       try {
-        const result = await appointmentService.delete(id);
+        // Update statut to 'annulé' — do NOT delete the record
+        const result = await appointmentService.update(id, { statut: "annulé" });
         if (result.success) {
           setRdvs((prev) =>
             prev.map((r) => (r.id === id ? { ...r, statut: "annulé" } : r))

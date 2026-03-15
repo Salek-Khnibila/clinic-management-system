@@ -1,8 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+// With the Vite proxy configured, VITE_API_URL should be '/api'
+// This routes all API calls through Vite → Flask without CORS issues
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-// Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -11,7 +12,7 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Attach JWT access token to every request
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -20,37 +21,48 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle token refresh
+// On 401 — try refresh token once, then logout
+let isRefreshing = false;
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      // Token expired - try to refresh
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
       const refreshToken = localStorage.getItem('refreshToken');
-      if (refreshToken) {
+
+      if (refreshToken && !isRefreshing) {
+        originalRequest._retry = true;
+        isRefreshing = true;
+
         try {
-          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
-            refreshToken,
+          // Send the refresh token in the Authorization header as a Bearer token
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+            headers: { Authorization: `Bearer ${refreshToken}` },
           });
+
           const { token } = response.data;
           localStorage.setItem('token', token);
-          
-          // Retry the original request
-          error.config.headers.Authorization = `Bearer ${token}`;
-          return api.request(error.config);
-        } catch (refreshError) {
-          // Refresh failed, logout user
+
+          // Retry original request with new token
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api.request(originalRequest);
+        } catch {
+          // Refresh failed — log the user out
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
           window.location.href = '/login';
+        } finally {
+          isRefreshing = false;
         }
       }
     }
+
     return Promise.reject(error);
   }
 );
