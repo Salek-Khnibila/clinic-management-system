@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Bell, Clock, FileText, Heart, Phone, Stethoscope, Users } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { PATIENTS_DB } from "../../constants/data.js";
+
 import { useApp } from "../../contexts/AppContext.jsx";
 import { Avatar, Btn, Card, Modal, SectionTitle, StatusBadge, StatCard } from "../../components/ui/Base.jsx";
 
 export const MedecinAccueil = ({ user }) => {
-  const { rdvs } = useApp();
+  const { rdvs, patients } = useApp();
   const mesRdv = rdvs.filter((r) => r.medecin_id === (user.medecin_id || 1));
   const todayStr = new Date().toISOString().split("T")[0];
   const rdvAujourd = mesRdv.filter(
@@ -123,7 +123,7 @@ export const MedecinAccueil = ({ user }) => {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {rdvAujourd.map((rdv) => {
-          const p = PATIENTS_DB.find((x) => x.id === rdv.patient_id);
+          const p = patients.find((x) => x.id === rdv.patient_id);
           return (
             <Card key={rdv.id} style={{ padding: "15px 18px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
@@ -171,7 +171,7 @@ export const MedecinAccueil = ({ user }) => {
                           marginRight: 3,
                         }}
                       />
-                      {p?.gs}
+                      {p?.groupe_sanguin}
                     </span>
                   </div>
                 </div>
@@ -255,7 +255,7 @@ export const MedecinAccueil = ({ user }) => {
                   }}
                 >
                   <Phone size={11} />
-                  {motifMod.p?.tel}
+                   {motifMod.p?.telephone}
                 </span>
                 <span
                   style={{
@@ -264,7 +264,7 @@ export const MedecinAccueil = ({ user }) => {
                     fontWeight: 700,
                   }}
                 >
-                  Groupe: {motifMod.p?.gs}
+                  Groupe: {motifMod.p?.groupe_sanguin}
                 </span>
               </div>
             </div>

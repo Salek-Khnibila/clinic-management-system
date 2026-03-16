@@ -7,7 +7,7 @@ from flask_jwt_extended import (
 import mysql.connector
 import bcrypt
 import os
-from datetime import timedelta, date
+from datetime import datetime, timedelta, date
 from dotenv import load_dotenv
 from security_utils import (
     log_security_event, rate_limit, validate_input,
@@ -82,7 +82,7 @@ def login():
             log_security_event('BRUTE_FORCE_DETECTED', ip_address=client_ip)
             return jsonify({'success': False, 'message': 'Trop de tentatives. Réessayez plus tard.'}), 429
 
-        data = request.get_json()
+        data = request.get_json() or {}
         email = data.get('email')
         password = data.get('password')
         role = data.get('role')
@@ -116,6 +116,7 @@ def login():
                 'success': True,
                 'user': {
                     'id': user['id'],
+                    'patient_id': user['id'],
                     'prenom': user['prenom'],
                     'nom': user['nom'],
                     'email': user['email'],

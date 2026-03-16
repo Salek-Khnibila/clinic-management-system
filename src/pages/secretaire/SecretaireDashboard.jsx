@@ -1,11 +1,10 @@
 import { AlertTriangle, ArrowRight, Calendar, Clock, Stethoscope, Users } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { MEDECINS_DB, PATIENTS_DB } from "../../constants/data.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import { Avatar, Card, SectionTitle, StatCard, StatusBadge } from "../../components/ui/Base.jsx";
 
 export const SecretaireDashboard = ({ onNavigate }) => {
-  const { rdvs } = useApp();
+  const { rdvs, doctors, patients } = useApp();
   const enAtt = rdvs.filter((r) => r.statut === "en attente").length;
 
   return (
@@ -55,14 +54,14 @@ export const SecretaireDashboard = ({ onNavigate }) => {
       >
         <StatCard
           label="Patients"
-          value={PATIENTS_DB.length}
+          value={patients.length}
           Icon={Users}
           color={C.tealDk}
           onClick={() => onNavigate("planning")}
         />
         <StatCard
           label="Médecins"
-          value={MEDECINS_DB.length}
+          value={doctors.length}
           Icon={Stethoscope}
           color={C.navy}
         />
@@ -140,8 +139,6 @@ export const SecretaireDashboard = ({ onNavigate }) => {
 
       <SectionTitle>RDV récents</SectionTitle>
       {rdvs.slice(0, 5).map((rdv) => {
-        const p = PATIENTS_DB.find((x) => x.id === rdv.patient_id);
-        const m = MEDECINS_DB.find((x) => x.id === rdv.medecin_id);
         return (
           <Card
             key={rdv.id}
@@ -154,7 +151,7 @@ export const SecretaireDashboard = ({ onNavigate }) => {
             }}
           >
             <Avatar
-              name={`${p?.prenom} ${p?.nom}`}
+              name={`${rdv.patient_prenom} ${rdv.patient_nom}`}
               color={C.tealDk}
               size={36}
             />
@@ -166,7 +163,7 @@ export const SecretaireDashboard = ({ onNavigate }) => {
                   color: C.navy,
                 }}
               >
-                {p?.prenom} {p?.nom}
+                {rdv.patient_prenom} {rdv.patient_nom}
               </div>
               <div
                 style={{
@@ -185,7 +182,7 @@ export const SecretaireDashboard = ({ onNavigate }) => {
                   }}
                 >
                   <Stethoscope size={10} />
-                  Dr. {m?.nom}
+                  Dr. {rdv.medecin_nom}
                 </span>
                 <span
                   style={{

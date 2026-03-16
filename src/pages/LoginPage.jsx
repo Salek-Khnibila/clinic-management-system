@@ -2,7 +2,6 @@ import { useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle, Shield, User } from "lucide-react";
 import { C } from "../constants/designTokens.js";
 import { ROLES } from "../constants/status.js";
-import { USERS_DB } from "../constants/data.js";
 import { Logo } from "../components/ui/Logo.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
 
@@ -13,12 +12,6 @@ export const LoginPage = () => {
   const [role, setRole] = useState("patient");
   const [err, setErr] = useState("");
 
-  const fillDemo = (r) => {
-    setEmail(USERS_DB[r].email);
-    setPass(USERS_DB[r].password);
-    setRole(r);
-    setErr("");
-  };
 
   const submit = async () => {
     if (!email || !pass) {
@@ -191,55 +184,6 @@ export const LoginPage = () => {
           Accédez à votre espace personnel
         </p>
 
-        <div
-          style={{
-            background: C.bg,
-            borderRadius: 10,
-            padding: "13px 15px",
-            marginBottom: 22,
-            border: `1px solid ${C.border}`,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: C.gray400,
-              textTransform: "uppercase",
-              letterSpacing: 0.7,
-              marginBottom: 9,
-            }}
-          >
-            Accès rapide (démo)
-          </div>
-          <div style={{ display: "flex", gap: 7 }}>
-            {["patient", "medecin", "secretaire"].map((r) => (
-              <button
-                key={r}
-                onClick={() => fillDemo(r)}
-                style={{
-                  flex: 1,
-                  padding: "9px 5px",
-                  borderRadius: 9,
-                  border: `1.5px solid ${
-                    role === r ? C.tealDk : C.border
-                  }`,
-                  background:
-                    role === r ? C.tealLt : C.white,
-                  color:
-                    role === r ? C.tealDk : C.gray500,
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "all 0.15s",
-                }}
-              >
-                {ROLES[r].label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {[
           ["Email", "email", email, setEmail, "votre@email.ma", User],

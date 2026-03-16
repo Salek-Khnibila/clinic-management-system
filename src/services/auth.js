@@ -12,13 +12,14 @@ export const authService = {
       });
       
       const { user, token, refreshToken } = response.data;
+      const storedUser = { ...user, patient_id: user.id };
       
       // Store tokens
       localStorage.setItem('token', token);
       localStorage.setItem('refreshToken', refreshToken);
-      localStorage.setItem('user', JSON.stringify(user));
+      localStorage.setItem('user', JSON.stringify(storedUser));
       
-      return { success: true, user };
+      return { success: true, user: storedUser };
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed';
       return { success: false, message };
@@ -46,7 +47,11 @@ export const authService = {
   // Get current user from storage
   getCurrentUser: () => {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    const user = userStr ? JSON.parse(userStr) : null;
+    if (user && !user.patient_id) {
+      return { ...user, patient_id: user.id };
+    }
+    return user;
   },
 
   // Check if user is authenticated

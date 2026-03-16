@@ -8,7 +8,6 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { MEDECINS_DB } from "../../constants/data.js";
 import { SPEC_ICONS, STATUS } from "../../constants/status.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import {
@@ -149,10 +148,7 @@ export const PatientRdvPage = ({ user }) => {
             }}
           >
             {shown.map((rdv) => {
-              const m = MEDECINS_DB.find(
-                (x) => x.id === rdv.medecin_id
-              );
-              const I = SPEC_ICONS[m?.specialite] || Stethoscope;
+              const I = SPEC_ICONS[rdv.specialite] || Stethoscope;
               return (
                 <Card
                   key={rdv.id}
@@ -176,7 +172,7 @@ export const PatientRdvPage = ({ user }) => {
                           fontFamily: "Georgia,serif",
                         }}
                       >
-                        Dr. {m?.prenom} {m?.nom}
+                        Dr. {rdv.medecin_prenom} {rdv.medecin_nom}
                       </div>
                       <div
                         style={{
@@ -198,7 +194,7 @@ export const PatientRdvPage = ({ user }) => {
                             fontWeight: 600,
                           }}
                         >
-                          {m?.specialite}
+                          {rdv.specialite}
                         </span>
                       </div>
                     </div>
