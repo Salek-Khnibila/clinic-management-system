@@ -42,10 +42,10 @@ CREATE TABLE IF NOT EXISTS appointments (
     date DATE NOT NULL,
     heure TIME NOT NULL,
     motif TEXT NOT NULL,
-    statut ENUM('en attente', 'confirmé', 'annulé', 'reporté') DEFAULT 'en attente',
+    statut ENUM('en_attente', 'confirme', 'annule', 'reporte') DEFAULT 'en_attente',
     patient_id INT NOT NULL,
     medecin_id INT NOT NULL,
-    arrivee ENUM('en attente', 'en salle', 'absent') DEFAULT 'en attente',
+    arrivee ENUM('en_attente', 'en_salle', 'absent') DEFAULT 'en_attente',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     

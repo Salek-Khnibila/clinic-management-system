@@ -52,10 +52,13 @@ def execute_query(query, params=None, fetch_one=False):
         return None
     try:
         cursor = connection.cursor(dictionary=True)
+        print(f"DEBUG SQL: {query}")
+        print(f"DEBUG PARAMS: {params}")
         cursor.execute(query, params or [])
         if query.strip().upper().startswith(('INSERT', 'UPDATE', 'DELETE')):
             connection.commit()
             result = cursor.lastrowid if query.strip().upper().startswith('INSERT') else cursor.rowcount
+            print(f"DEBUG ROWS AFFECTED: {result}")
         else:
             result = cursor.fetchone() if fetch_one else cursor.fetchall()
         cursor.close()
@@ -349,18 +352,44 @@ def create_appointment():
 def update_appointment(appointment_id):
     """Update appointment fields (statut, date, heure, arrivee, etc.)."""
     try:
-        data = request.get_json()
+        data = request.get_json(force=True)
+        print(f"DEBUG: Data received for appointment {appointment_id}: {data}")
+        
         if not data:
-            return jsonify({'success': False, 'message': 'Données manquantes'}), 400
+            return jsonify({'success': False, 'message': 'Donnees manquantes'}), 400
 
-        # Whitelist of updatable columns to prevent SQL injection via key names
+        # 🔹 Mapping des statuts humains vers ENUM
+        mapping_statut = {
+            "en attente": "en_attente",
+            "confirmé": "confirme", 
+            "annulé": "annule",
+            "reporté": "reporte"
+        }
+
+        # 🔹 Filtrer et mapper les champs
         allowed_fields = {'date', 'heure', 'motif', 'statut', 'arrivee'}
         fields = []
         params = []
         for key, value in data.items():
-            if key in allowed_fields:
-                fields.append(f"{key} = %s")
-                params.append(value)
+            if key in allowed_fields and value is not None:
+                # Mapping spécial pour statut et arrivee
+                if key == 'statut':
+                    mapped_value = mapping_statut.get(str(value), str(value))
+                    fields.append(f"{key} = %s")
+                    params.append(mapped_value)
+                elif key == 'arrivee':
+                    # Mapping arrivee si nécessaire
+                    mapping_arrivee = {
+                        "en attente": "en_attente",
+                        "en salle": "en_salle",
+                        "absent": "absent"
+                    }
+                    mapped_value = mapping_arrivee.get(str(value), str(value))
+                    fields.append(f"{key} = %s")
+                    params.append(mapped_value)
+                else:
+                    fields.append(f"{key} = %s")
+                    params.append(value)
 
         if not fields:
             return jsonify({'success': False, 'message': 'Aucun champ valide fourni'}), 400
@@ -369,23 +398,34 @@ def update_appointment(appointment_id):
         params.append(appointment_id)
         rows_affected = execute_query(query, params)
 
-        if rows_affected is not None and rows_affected > 0:
-            return jsonify({'success': True, 'message': 'Rendez-vous mis à jour'})
+        # 🔹 Nouvelle logique robuste
+        if rows_affected is None:
+            # Erreur SQL
+            return jsonify({'success': False, 'message': 'Erreur SQL lors de la mise a jour'}), 500
         elif rows_affected == 0:
-            return jsonify({'success': False, 'message': 'Rendez-vous introuvable'}), 404
-        return jsonify({'success': False, 'message': 'Erreur lors de la mise à jour'}), 500
+            # Ligne existante mais aucune valeur modifiée
+            return jsonify({'success': True, 'message': 'Rendez-vous deja a jour'})
+        else:
+            return jsonify({'success': True, 'message': 'Rendez-vous mis a jour'})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        import traceback
+        print("===== ERREUR COMPLETE UPDATE APPOINTMENT =====")
+        traceback.print_exc()
+        
+        return jsonify({
+            "message": str(e),
+            "success": False
+        }), 500
 
 
 @app.route('/api/appointments/<int:appointment_id>', methods=['DELETE'])
 @jwt_required()
 def delete_appointment(appointment_id):
-    """Permanently delete an appointment (admin use). For cancellation use PUT with statut=annulé."""
+    """Permanently delete an appointment (admin use). For cancellation use PUT with statut=annule."""
     try:
         rows_affected = execute_query("DELETE FROM appointments WHERE id = %s", (appointment_id,))
         if rows_affected is not None and rows_affected > 0:
-            return jsonify({'success': True, 'message': 'Rendez-vous supprimé'})
+            return jsonify({'success': True, 'message': 'Rendez-vous supprime'})
         return jsonify({'success': False, 'message': 'Rendez-vous introuvable'}), 404
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
@@ -532,10 +572,10 @@ def update_patient(patient_id):
         rows_affected = execute_query(query, params)
 
         if rows_affected is not None and rows_affected > 0:
-            return jsonify({'success': True, 'message': 'Profil mis à jour'})
+            return jsonify({'success': True, 'message': 'Profil mis a jour'})
         elif rows_affected == 0:
             return jsonify({'success': False, 'message': 'Patient introuvable'}), 404
-        return jsonify({'success': False, 'message': 'Erreur lors de la mise à jour'}), 500
+        return jsonify({'success': False, 'message': 'Erreur lors de la mise a jour'}), 500
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
 

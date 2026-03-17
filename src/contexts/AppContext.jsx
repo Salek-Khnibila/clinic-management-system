@@ -66,10 +66,10 @@ export const AppProvider = ({ children }) => {
   const validateRdv = useCallback(
     async (id) => {
       try {
-        const result = await appointmentService.update(id, { statut: "confirmé" });
+        const result = await appointmentService.update(id, { statut: "confirme" });
         if (result.success) {
           setRdvs((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, statut: "confirmé" } : r))
+            prev.map((r) => (r.id === id ? { ...r, statut: "confirme" } : r))
           );
           return { success: true };
         }
@@ -85,11 +85,11 @@ export const AppProvider = ({ children }) => {
   const annulerRdv = useCallback(
     async (id) => {
       try {
-        // Update statut to 'annulé' — do NOT delete the record
-        const result = await appointmentService.update(id, { statut: "annulé" });
+        // Update statut to 'annule' — do NOT delete the record
+        const result = await appointmentService.update(id, { statut: "annule" });
         if (result.success) {
           setRdvs((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, statut: "annulé" } : r))
+            prev.map((r) => (r.id === id ? { ...r, statut: "annule" } : r))
           );
           return { success: true };
         }
@@ -105,10 +105,10 @@ export const AppProvider = ({ children }) => {
   const reporterRdv = useCallback(
     async (id, date) => {
       try {
-        const result = await appointmentService.update(id, { date, statut: "reporté" });
+        const result = await appointmentService.update(id, { date, statut: "reporte" });
         if (result.success) {
           setRdvs((prev) =>
-            prev.map((r) => (r.id === id ? { ...r, date, statut: "reporté" } : r))
+            prev.map((r) => (r.id === id ? { ...r, date, statut: "reporte" } : r))
           );
           return { success: true };
         }
