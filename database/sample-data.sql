@@ -21,6 +21,6 @@ INSERT INTO appointments (patient_id, medecin_id, date, heure, motif, statut) VA
 (5, 3, '2025-03-16', '14:00', 'Consultation dermatologique', 'en attente');
 
 -- Insert messages
-INSERT INTO messages (`from`, to_patient_id, sujet, corps, date) VALUES
+INSERT INTO messages (sender, to_patient_id, sujet, corps, date) VALUES
 ('secretaire', 4, 'Rappel RDV', 'Rappel de votre rendez-vous.', '2025-03-13'),
 ('secretaire', 5, 'Confirmation', 'RDV confirmé.', '2025-03-13');

@@ -40,7 +40,17 @@ export const SecretaireMessagerie = () => {
   };
   const handleSend = () => {
     if (!selP || !sujet || !corps) return;
-    sendMessage({ to_patient_id: selP.id, sujet, corps });
+    
+    // 🔥 Ajouter le champ 'sender' requis par le backend
+    const messageData = {
+      sender: 'secretaire',  // ou utiliser l'utilisateur connecté
+      to_patient_id: selP.id,
+      sujet: sujet.trim(),
+      corps: corps.trim(),
+      date: new Date().toISOString().split('T')[0]
+    };
+    
+    sendMessage(messageData);
     setSent(true);
     setTimeout(() => {
       setSent(false);

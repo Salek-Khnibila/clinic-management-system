@@ -6,6 +6,7 @@
 CREATE DATABASE IF NOT EXISTS gestion_clinique CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE gestion_clinique;
 
+
 -- ============================================
 -- Users Table
 -- ============================================
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS appointments (
 -- ============================================
 CREATE TABLE IF NOT EXISTS messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    `from` VARCHAR(50) NOT NULL,
+    sender VARCHAR(50) NOT NULL,
     to_patient_id INT NOT NULL,
     sujet VARCHAR(255) NOT NULL,
     corps TEXT NOT NULL,

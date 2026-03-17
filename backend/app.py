@@ -21,7 +21,7 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET', 'change-me-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
-app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)
+app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=7)
 
 CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
 jwt = JWTManager(app)
@@ -177,23 +177,86 @@ def refresh():
 #  APPOINTMENTS ROUTES
 # ══════════════════════════════════════════════
 
+@app.route('/api/appointments/me', methods=['GET'])
+@jwt_required()
+def get_my_appointments():
+    try:
+        from flask_jwt_extended import get_jwt_identity
+        patient_id = get_jwt_identity()  # récupère l'ID du patient connecté
+
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        query = """
+        SELECT 
+            a.id,
+            a.date,
+            a.heure,
+            a.statut,
+            a.motif,
+            m.prenom AS medecin_prenom,
+            m.nom AS medecin_nom,
+            m.specialite AS medecin_specialite
+        FROM appointments a
+        JOIN users m ON a.medecin_id = m.id
+        WHERE a.patient_id = %s
+        ORDER BY a.date DESC, a.heure DESC
+        """
+        cursor.execute(query, (patient_id,))
+        appointments = cursor.fetchall()
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "data": appointments})
+
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 @app.route('/api/appointments', methods=['GET'])
 @jwt_required()
 def get_appointments():
     try:
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
         query = """
-        SELECT a.*,
-               p.prenom as patient_prenom, p.nom as patient_nom,
-               m.prenom as medecin_prenom, m.nom as medecin_nom
+        SELECT 
+            a.id,
+            a.date,
+            a.heure,
+            a.statut,
+            a.motif,
+
+            p.prenom AS patient_prenom,
+            p.nom AS patient_nom,
+
+            m.prenom AS medecin_prenom,
+            m.nom AS medecin_nom
+
         FROM appointments a
-        LEFT JOIN users p ON a.patient_id = p.id
-        LEFT JOIN users m ON a.medecin_id = m.id
+        JOIN users p ON a.patient_id = p.id
+        JOIN users m ON a.medecin_id = m.id
         ORDER BY a.date DESC, a.heure DESC
         """
-        appointments = execute_query(query)
-        return jsonify({'success': True, 'data': appointments or []})
+
+        cursor.execute(query)
+        appointments = cursor.fetchall()
+
+        # Convertir les timedelta en string
+        for appt in appointments:
+            for key, value in appt.items():
+                if isinstance(value, timedelta):
+                    appt[key] = str(value)
+
+        cursor.close()
+        conn.close()
+
+        return jsonify({"success": True, "data": appointments})
+
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
 @app.route('/api/appointments/user/<int:user_id>', methods=['GET'])
@@ -519,20 +582,40 @@ def get_patient_messages(patient_id):
 def send_message():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'message': 'Données JSON invalides'}), 400
+
+        # Valeurs par défaut si champ absent
+        sender = data.get('sender', 'secretaire')
+        to_patient_id = data.get('to_patient_id')
+        sujet = data.get('sujet', '')
+        corps = data.get('corps', '')
         today = date.today().isoformat()
+
+        # Validation des champs requis
+        if not to_patient_id:
+            return jsonify({'success': False, 'message': "to_patient_id manquant"}), 400
+
+        if not corps.strip():
+            return jsonify({'success': False, 'message': 'Champs requis manquants'}), 400
+
         query = """
-        INSERT INTO messages (`from`, to_patient_id, sujet, corps, date)
+        INSERT INTO messages (sender, to_patient_id, sujet, corps, date)
         VALUES (%s, %s, %s, %s, %s)
         """
-        message_id = execute_query(query, (
-            data['from'],
-            data['to_patient_id'],
-            data['sujet'],
-            data['corps'],
-            data.get('date', today),
-        ))
-        if message_id:
-            return jsonify({'success': True, 'data': {'id': message_id}})
+        message_id = execute_query(query, (sender, to_patient_id, sujet, corps, data.get('date', today)))
+
+        if message_id and message_id > 0:
+            # 🔹 Récupérer le message complet pour l'affichage
+            select_query = """
+            SELECT m.*, p.prenom as patient_prenom, p.nom as patient_nom
+            FROM messages m
+            LEFT JOIN users p ON m.to_patient_id = p.id
+            WHERE m.id = %s
+            """
+            message = execute_query(select_query, (message_id,))
+            return jsonify({'success': True, 'data': message[0] if message else None})
+
         return jsonify({'success': False, 'message': "Erreur lors de l'envoi"}), 500
     except Exception as e:
         return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500

@@ -174,7 +174,42 @@ export const messageService = {
   // Send message to a patient
   sendToPatient: async (messageData) => {
     try {
-      const response = await api.post('/messages', messageData);
+      // 🔥 Validation des champs requis
+      const requiredFields = ['sender', 'to_patient_id', 'sujet', 'corps'];
+      const missing = requiredFields.filter(field => !messageData[field]);
+      
+      if (missing.length > 0) {
+        return { 
+          success: false, 
+          message: `Champs manquants: ${missing.join(', ')}` 
+        };
+      }
+
+      // 🔥 Validation des types
+      if (typeof messageData.to_patient_id !== 'number') {
+        return { 
+          success: false, 
+          message: 'to_patient_id doit être un nombre' 
+        };
+      }
+
+      if (typeof messageData.sender !== 'string' || messageData.sender.trim() === '') {
+        return { 
+          success: false, 
+          message: 'sender doit être une chaîne de caractères non vide' 
+        };
+      }
+
+      // 🔥 Nettoyage des données
+      const cleanedData = {
+        sender: messageData.sender.trim(),
+        to_patient_id: parseInt(messageData.to_patient_id),
+        sujet: messageData.sujet.trim(),
+        corps: messageData.corps.trim(),
+        date: messageData.date || new Date().toISOString().split('T')[0]
+      };
+
+      const response = await api.post('/messages', cleanedData);
       return { success: true, data: response.data.data };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || error.message };
