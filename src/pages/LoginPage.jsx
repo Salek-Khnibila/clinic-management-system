@@ -2,41 +2,51 @@ import { useState } from "react";
 import { AlertTriangle, ArrowRight, CheckCircle, Shield, User } from "lucide-react";
 import { C } from "../constants/designTokens.js";
 import { ROLES } from "../constants/status.js";
-import { USERS_DB } from "../constants/data.js";
 import { Logo } from "../components/ui/Logo.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
+import { useMobile } from "../hooks/useMobile.js";
 
 export const LoginPage = () => {
-  const { login, loading } = useAuth();
+  const { login, register, loading } = useAuth();
+  const isMobile = useMobile();
+  const [isLogin, setIsLogin] = useState(true);
+  const [nom, setNom] = useState("");
+  const [prenom, setPrenom] = useState("");
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [role, setRole] = useState("patient");
   const [err, setErr] = useState("");
 
-  const fillDemo = (r) => {
-    setEmail(USERS_DB[r].email);
-    setPass(USERS_DB[r].password);
-    setRole(r);
-    setErr("");
-  };
-
   const submit = async () => {
-    if (!email || !pass) {
+    if (!email || !pass || (!isLogin && (!nom || !prenom))) {
       setErr("Veuillez remplir tous les champs.");
       return;
     }
 
     setErr("");
 
-    try {
-      const result = await login(email, pass, role);
-      if (result.success) {
-        // Login successful, onLogin will be called by AuthProvider
-      } else {
-        setErr(result.message || "Identifiants incorrects.");
+    if (isLogin) {
+      try {
+        const result = await login(email, pass, role);
+        if (result.success) {
+          // Login successful, onLogin will be called by AuthProvider
+        } else {
+          setErr(result.message || "Identifiants incorrects.");
+        }
+      } catch (error) {
+        setErr("Une erreur est survenue. Veuillez réessayer.");
       }
-    } catch (error) {
-      setErr("Une erreur est survenue. Veuillez réessayer.");
+    } else {
+      try {
+        const result = await register({ email, password: pass, role, nom, prenom });
+        if (result.success) {
+          await login(email, pass, role);
+        } else {
+          setErr(result.message || "Erreur lors de l'inscription.");
+        }
+      } catch (error) {
+        setErr("Une erreur est survenue. Veuillez réessayer.");
+      }
     }
   };
 
@@ -45,206 +55,96 @@ export const LoginPage = () => {
       style={{
         minHeight: "100vh",
         display: "flex",
-        fontFamily: "'Segoe UI',system-ui,sans-serif",
+        fontFamily: "'Inter',system-ui,sans-serif",
+        background: C.white,
       }}
     >
-      <div
-        style={{
-          flex: 1,
-          background: C.grad,
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          padding: 48,
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
+      {!isMobile && (
         <div
           style={{
-            position: "absolute",
-            top: -80,
-            right: -80,
-            width: 300,
-            height: 300,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.05)",
-          }}
-        />
-        <div
-          style={{
+            flex: "0 0 40%", // Locks the graphic to 40%
+            maxWidth: 480, // Caps width to prevent eye strain on ultra-wide monitors
+            backgroundImage: `linear-gradient(rgba(8, 145, 178, 0.75), rgba(13, 33, 55, 0.85)), url('https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?q=80&w=1200&auto=format&fit=crop')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
             position: "relative",
-            zIndex: 1,
-            textAlign: "center",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            padding: "8vh 4vw",
             color: "#fff",
-            maxWidth: 380,
           }}
         >
-          <Logo size={72} />
-          <div
-            style={{
-              marginTop: 18,
-              fontSize: 12,
-              letterSpacing: 3,
-              textTransform: "uppercase",
-              opacity: 0.7,
-              fontWeight: 600,
-            }}
-          >
-            SIMPLIFIER · OPTIMISER · AMÉLIORER
+          {/* Glassmorphism Abstract Floating Orbs */}
+          <div style={{ position: "absolute", top: "-10%", left: "-20%", width: "80%", paddingBottom: "80%", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 60%)" }} />
+          <div style={{ position: "absolute", bottom: "-10%", right: "-20%", width: "90%", paddingBottom: "90%", borderRadius: "50%", background: "radial-gradient(circle, rgba(6,182,212,0.2) 0%, transparent 60%)" }} />
+
+          <div style={{ zIndex: 1, position: "relative" }}>
+            <div style={{ fontSize: 13, letterSpacing: 4, textTransform: "uppercase", opacity: 0.9, fontWeight: 800, color: C.tealLt }}>
+              Gestion Clinique
+            </div>
           </div>
-          <div style={{ marginTop: 40 }}>
-            {[
-              [
-                "Prise de RDV en ligne",
-                "Réservez en quelques clics",
-              ],
-              [
-                "Synchronisation en temps réel",
-                "Patient, Médecin et Secrétaire liés",
-              ],
-              [
-                "Messagerie intégrée",
-                "Secrétaire contacte les patients directement",
-              ],
-            ].map(([t, s]) => (
-              <div
-                key={t}
-                style={{
-                  display: "flex",
-                  gap: 12,
-                  alignItems: "flex-start",
-                  marginBottom: 18,
-                  textAlign: "left",
-                }}
-              >
-                <div
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 9,
-                    background: "rgba(255,255,255,0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    flexShrink: 0,
-                    marginTop: 2,
-                  }}
-                >
-                  <CheckCircle size={17} color="#fff" />
-                </div>
-                <div>
-                  <div
-                    style={{ fontWeight: 700, fontSize: 14 }}
-                  >
-                    {t}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      opacity: 0.7,
-                      marginTop: 2,
-                    }}
-                  >
-                    {s}
-                  </div>
-                </div>
-              </div>
-            ))}
+
+          <div style={{ zIndex: 1, position: "relative" }}>
+            <h1 style={{ fontSize: "clamp(32px, 3.5vw, 48px)", fontWeight: 900, fontFamily: "Georgia,serif", margin: "0 0 24px", lineHeight: 1.1 }}>
+              L'excellence<br/>médicale,<br/>en ligne.
+            </h1>
+            <p style={{ fontSize: 17, opacity: 0.9, maxWidth: 360, lineHeight: 1.6, margin: 0 }}>
+              Connectez-vous pour accéder à votre espace dédié, gérer vos rendez-vous et communiquer avec votre praticien.
+            </p>
           </div>
         </div>
-      </div>
+      )}
 
       <div
         style={{
-          width: 460,
+          flex: 1,
           background: C.white,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          padding: "44px 40px",
+          alignItems: "center",
+          padding: isMobile ? "48px 24px" : "60px 48px",
           overflowY: "auto",
         }}
       >
-        <div style={{ marginBottom: 28 }}>
-          <Logo size={34} full />
+        <div style={{ width: "100%", maxWidth: 400 }}>
+        <div style={{ marginBottom: 48, display: "flex", justifyContent: "flex-start" }}>
+          <Logo size={72} full />
         </div>
-        <h2
-          style={{
-            margin: "0 0 5px",
-            fontSize: 24,
-            fontWeight: 900,
-            color: C.navy,
-            fontFamily: "Georgia,serif",
-          }}
-        >
-          Connexion
-        </h2>
-        <p
-          style={{
-            margin: "0 0 26px",
-            color: C.gray500,
-            fontSize: 14,
-          }}
-        >
-          Accédez à votre espace personnel
-        </p>
-
-        <div
-          style={{
-            background: C.bg,
-            borderRadius: 10,
-            padding: "13px 15px",
-            marginBottom: 22,
-            border: `1px solid ${C.border}`,
-          }}
-        >
-          <div
+        <div style={{ marginBottom: 40 }}>
+          <h2
             style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: C.gray400,
-              textTransform: "uppercase",
-              letterSpacing: 0.7,
-              marginBottom: 9,
+              margin: "0 0 8px",
+              fontSize: isMobile ? 32 : 36,
+              fontWeight: 900,
+              color: C.navy,
+              fontFamily: "'Inter',system-ui,sans-serif",
+              letterSpacing: "-0.03em",
             }}
           >
-            Accès rapide (démo)
-          </div>
-          <div style={{ display: "flex", gap: 7 }}>
-            {["patient", "medecin", "secretaire"].map((r) => (
-              <button
-                key={r}
-                onClick={() => fillDemo(r)}
-                style={{
-                  flex: 1,
-                  padding: "9px 5px",
-                  borderRadius: 9,
-                  border: `1.5px solid ${
-                    role === r ? C.tealDk : C.border
-                  }`,
-                  background:
-                    role === r ? C.tealLt : C.white,
-                  color:
-                    role === r ? C.tealDk : C.gray500,
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  transition: "all 0.15s",
-                }}
-              >
-                {ROLES[r].label}
-              </button>
-            ))}
-          </div>
+            {isLogin ? "Connexion" : "Inscription"}
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              color: C.gray500,
+              fontSize: isMobile ? 15 : 16,
+              lineHeight: 1.5,
+            }}
+          >
+            {isLogin ? "Veuillez entrer vos identifiants pour accéder à votre espace." : "Rejoignez-nous et créez votre compte en quelques clics."}
+          </p>
         </div>
 
-        {[
+        {(isLogin ? [] : [
+          ["Prénom", "text", prenom, setPrenom, "Votre prénom", User],
+          ["Nom", "text", nom, setNom, "Votre nom", User],
+        ]).concat([
           ["Email", "email", email, setEmail, "votre@email.ma", User],
           ["Mot de passe", "password", pass, setPass, "••••••••", Shield],
-        ].map(([lbl, type, val, setter, ph, Ic]) => (
+        ]).map(([lbl, type, val, setter, ph, Ic]) => (
           <div key={lbl} style={{ marginBottom: 14 }}>
             <label
               style={{
@@ -261,11 +161,11 @@ export const LoginPage = () => {
             </label>
             <div style={{ position: "relative" }}>
               <Ic
-                size={15}
+                size={16}
                 color={C.gray400}
                 style={{
                   position: "absolute",
-                  left: 12,
+                  left: 14,
                   top: "50%",
                   transform: "translateY(-50%)",
                 }}
@@ -277,13 +177,13 @@ export const LoginPage = () => {
                 placeholder={ph}
                 style={{
                   width: "100%",
-                  paddingLeft: 36,
-                  paddingRight: 13,
-                  paddingTop: 11,
-                  paddingBottom: 11,
-                  borderRadius: 9,
+                  paddingLeft: 40,
+                  paddingRight: 16,
+                  paddingTop: isMobile ? 14 : 12,
+                  paddingBottom: isMobile ? 14 : 12,
+                  borderRadius: 12,
                   border: `1.5px solid ${C.border}`,
-                  fontSize: 14,
+                  fontSize: isMobile ? 15 : 14,
                   color: C.navy,
                   outline: "none",
                   fontFamily: "inherit",
@@ -368,12 +268,12 @@ export const LoginPage = () => {
           onClick={submit}
           style={{
             width: "100%",
-            padding: "13px",
-            borderRadius: 10,
+            padding: isMobile ? "16px" : "14px",
+            borderRadius: 12,
             background: C.gradBtn,
             color: "#fff",
             fontWeight: 800,
-            fontSize: 15,
+            fontSize: 16,
             border: "none",
             cursor: "pointer",
             fontFamily: "inherit",
@@ -392,14 +292,36 @@ export const LoginPage = () => {
           }}
         >
           {loading ? (
-            "Connexion..."
+            isLogin ? "Connexion..." : "Inscription..."
           ) : (
             <>
-              <span>Se connecter</span>
+              <span>{isLogin ? "Se connecter" : "S'inscrire"}</span>
               <ArrowRight size={17} />
             </>
           )}
         </button>
+
+        <div style={{ marginTop: 24, textAlign: "center", fontSize: 13, color: C.gray500 }}>
+          {isLogin ? "Nouveau sur la plateforme ?" : "Vous avez déjà un compte ?"}
+          <button
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setErr("");
+            }}
+            style={{
+              background: "none",
+              border: "none",
+              color: C.tealDk,
+              fontWeight: 700,
+              cursor: "pointer",
+              marginLeft: 8,
+              fontFamily: "inherit",
+            }}
+          >
+            {isLogin ? "S'inscrire" : "Se connecter"}
+          </button>
+        </div>
+        </div>
       </div>
     </div>
   );

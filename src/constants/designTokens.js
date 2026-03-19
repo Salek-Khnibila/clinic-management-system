@@ -23,7 +23,7 @@ export const C = {
   amberLt: "#FEF3C7",
   purple: "#8B5CF6",
   purpleLt: "#EDE9FE",
-  shadow: "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.05)",
-  shadowH: "0 4px 20px rgba(6,182,212,0.15)",
+  shadow: "0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03)",
+  shadowH: "0 10px 25px -5px rgba(6,182,212,0.2), 0 8px 10px -6px rgba(6,182,212,0.1)",
 };
 

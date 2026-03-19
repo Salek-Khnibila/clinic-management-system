@@ -32,7 +32,7 @@ export const AppLayout = ({ onLogout }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontFamily: "'Segoe UI',system-ui,sans-serif",
+          fontFamily: "'Inter',system-ui,sans-serif",
         }}
       >
         <LoadingSpinner size={60} text="Initialisation de l'application..." />
@@ -93,11 +93,11 @@ export const AppLayout = ({ onLogout }) => {
           style={{
             maxWidth: 1200,
             margin: "0 auto",
-            padding: "0 24px",
+            padding: isMobile ? "0 16px" : "0 24px",
             height: 64,
             display: "flex",
             alignItems: "center",
-            gap: 20,
+            gap: isMobile ? 12 : 20,
           }}
         >
           <Logo size={32} full={!isMobile} />
