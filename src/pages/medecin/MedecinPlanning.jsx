@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Calendar } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { PATIENTS_DB } from "../../constants/data.js";
+
 import { useApp } from "../../contexts/AppContext.jsx";
 import { Avatar, Card, MiniCalendar, SectionTitle, StatusBadge } from "../../components/ui/Base.jsx";
 
@@ -57,7 +57,6 @@ export const MedecinPlanning = ({ user }) => {
             }}
           >
             {rdvJour.map((rdv) => {
-              const p = PATIENTS_DB.find((x) => x.id === rdv.patient_id);
               return (
                 <Card
                   key={rdv.id}
@@ -88,7 +87,7 @@ export const MedecinPlanning = ({ user }) => {
                     </div>
                   </div>
                   <Avatar
-                    name={`${p?.prenom} ${p?.nom}`}
+                    name={`${rdv.patient_prenom} ${rdv.patient_nom}`}
                     color={C.tealDk}
                     size={34}
                   />
@@ -100,7 +99,7 @@ export const MedecinPlanning = ({ user }) => {
                         color: C.navy,
                       }}
                     >
-                      {p?.prenom} {p?.nom}
+                      {rdv.patient_prenom} {rdv.patient_nom}
                     </div>
                     <div
                       style={{

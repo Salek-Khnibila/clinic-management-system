@@ -6,6 +6,7 @@
 CREATE DATABASE IF NOT EXISTS gestion_clinique CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE gestion_clinique;
 
+
 -- ============================================
 -- Users Table
 -- ============================================
@@ -41,10 +42,10 @@ CREATE TABLE IF NOT EXISTS appointments (
     date DATE NOT NULL,
     heure TIME NOT NULL,
     motif TEXT NOT NULL,
-    statut ENUM('en attente', 'confirmé', 'annulé', 'reporté') DEFAULT 'en attente',
+    statut ENUM('en_attente', 'confirme', 'annule', 'reporte') DEFAULT 'en_attente',
     patient_id INT NOT NULL,
     medecin_id INT NOT NULL,
-    arrivee ENUM('en attente', 'en salle', 'absent') DEFAULT 'en attente',
+    arrivee ENUM('en_attente', 'en_salle', 'absent') DEFAULT 'en_attente',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
@@ -64,7 +65,7 @@ CREATE TABLE IF NOT EXISTS appointments (
 -- ============================================
 CREATE TABLE IF NOT EXISTS messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    `from` VARCHAR(50) NOT NULL,
+    sender VARCHAR(50) NOT NULL,
     to_patient_id INT NOT NULL,
     sujet VARCHAR(255) NOT NULL,
     corps TEXT NOT NULL,

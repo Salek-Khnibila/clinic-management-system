@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 import {
-  MEDECINS_DB,
   MONTHS,
   SPECS,
   VILLES,
@@ -26,7 +25,7 @@ import {
 } from "../../components/ui/Base.jsx";
 
 export const PatientAccueil = ({ user }) => {
-  const { rdvs, addRdv, messages } = useApp();
+  const { rdvs, addRdv, messages, doctors } = useApp();
   const [search, setSearch] = useState("");
   const [spec, setSpec] = useState("");
   const [ville, setVille] = useState("");
@@ -35,7 +34,7 @@ export const PatientAccueil = ({ user }) => {
   const myMsgs = messages.filter((m) => m.to_patient_id === user.patient_id);
   const unread = myMsgs.filter((m) => !m.lu).length;
 
-  const filtered = MEDECINS_DB.filter(
+  const filtered = doctors.filter(
     (m) =>
       (!spec || m.specialite === spec) &&
       (!ville || m.ville === ville) &&
@@ -330,7 +329,7 @@ export const PatientAccueil = ({ user }) => {
             }}
           >
             {prochains.map((rdv) => {
-              const m = MEDECINS_DB.find((x) => x.id === rdv.medecin_id);
+              const m = doctors.find((x) => x.id === rdv.medecin_id);
               return (
                 <Card
                   key={rdv.id}

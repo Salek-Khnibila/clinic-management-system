@@ -12,12 +12,12 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { PATIENTS_DB, TEMPLATES } from "../../constants/data.js";
+import { TEMPLATES } from "../../constants/data.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import { Avatar, Btn, Card, SectionTitle } from "../../components/ui/Base.jsx";
 
 export const SecretaireMessagerie = () => {
-  const { messages, sendMessage } = useApp();
+  const { messages, sendMessage, patients } = useApp();
   const [selP, setSelP] = useState(null);
   const [sujet, setSujet] = useState("");
   const [corps, setCorps] = useState("");
@@ -25,7 +25,7 @@ export const SecretaireMessagerie = () => {
   const [compose, setCompose] = useState(false);
   const [search, setSearch] = useState("");
   const [tmpl, setTmpl] = useState("");
-  const pats = PATIENTS_DB.filter((p) =>
+  const pats = patients.filter((p) =>
     `${p.prenom} ${p.nom}`.toLowerCase().includes(search.toLowerCase())
   );
   const msgsOf = (p) => messages.filter((m) => m.to_patient_id === p.id);
@@ -40,7 +40,17 @@ export const SecretaireMessagerie = () => {
   };
   const handleSend = () => {
     if (!selP || !sujet || !corps) return;
-    sendMessage({ to_patient_id: selP.id, sujet, corps });
+    
+    // 🔥 Ajouter le champ 'sender' requis par le backend
+    const messageData = {
+      sender: 'secretaire',  // ou utiliser l'utilisateur connecté
+      to_patient_id: selP.id,
+      sujet: sujet.trim(),
+      corps: corps.trim(),
+      date: new Date().toISOString().split('T')[0]
+    };
+    
+    sendMessage(messageData);
     setSent(true);
     setTimeout(() => {
       setSent(false);
@@ -140,7 +150,7 @@ export const SecretaireMessagerie = () => {
                       }}
                     >
                       <Phone size={10} />
-                      {p.tel}
+                      {p.telephone}
                     </div>
                   </div>
                   {count > 0 && (

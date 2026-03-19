@@ -11,7 +11,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { MEDECINS_DB, PATIENTS_DB } from "../../constants/data.js";
 import { STATUS } from "../../constants/status.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import {
@@ -24,7 +23,7 @@ import {
 } from "../../components/ui/Base.jsx";
 
 export const SecretairePlanning = () => {
-  const { rdvs, validateRdv, annulerRdv, reporterRdv, setArrivee } =
+  const { rdvs, doctors, validateRdv, annulerRdv, reporterRdv, setArrivee } =
     useApp();
 
   const [fMed, setFMed] = useState("");
@@ -97,7 +96,7 @@ export const SecretairePlanning = () => {
               Ic: Stethoscope,
               opts: [
                 { v: "", l: "Tous médecins" },
-                ...MEDECINS_DB.map((m) => ({
+                ...doctors.map((m) => ({
                   v: m.id,
                   l: `Dr. ${m.nom}`,
                 })),
@@ -225,8 +224,6 @@ export const SecretairePlanning = () => {
         )}
 
         {filtered.map((rdv) => {
-          const p = PATIENTS_DB.find((x) => x.id === rdv.patient_id);
-          const m = MEDECINS_DB.find((x) => x.id === rdv.medecin_id);
           return (
             <Card
               key={rdv.id}
@@ -252,7 +249,7 @@ export const SecretairePlanning = () => {
                       color: C.navy,
                     }}
                   >
-                    {p?.prenom} {p?.nom}
+                    {rdv.patient_prenom} {rdv.patient_nom}
                   </div>
                   <div
                     style={{
@@ -272,7 +269,7 @@ export const SecretairePlanning = () => {
                       }}
                     >
                       <Stethoscope size={10} />
-                      Dr. {m?.nom}
+                      Dr. {rdv.medecin_nom}
                     </span>
                     <span
                       style={{
@@ -400,11 +397,7 @@ export const SecretairePlanning = () => {
               color: C.gray700,
             }}
           >
-            {
-              PATIENTS_DB.find((p) => p.id === repMod.patient_id)
-                ?.prenom
-            }{" "}
-            — {repMod.heure} · {repMod.date}
+            {repMod.patient_prenom} — {repMod.heure} · {repMod.date}
           </div>
           <label
             style={{
