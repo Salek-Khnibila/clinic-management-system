@@ -7,7 +7,15 @@ import { Avatar, Btn, Card, Modal, SectionTitle, StatusBadge, StatCard } from ".
 
 export const MedecinAccueil = ({ user }) => {
   const { rdvs, patients } = useApp();
-  const mesRdv = rdvs.filter((r) => r.medecin_id === (user.medecin_id || 1));
+  
+  // Debug logs
+  console.log("USER:", user);
+  console.log("RDVS:", rdvs);
+  console.log("PATIENTS:", patients);
+  
+  const mesRdv = rdvs.filter((r) => r.medecin_id === user.id);
+  console.log("MES RDV FILTRÉS:", mesRdv);
+  
   const todayStr = new Date().toISOString().split("T")[0];
   const rdvAujourd = mesRdv.filter(
     (r) => r.date === "2025-03-10" || r.date === todayStr

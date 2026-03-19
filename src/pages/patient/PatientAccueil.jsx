@@ -50,6 +50,12 @@ export const PatientAccueil = ({ user }) => {
         r.patient_id === user.patient_id &&
         (r.statut === "confirme" || r.statut === "en_attente")
     )
+    .sort((a, b) => {
+      // Sort by date first, then by time
+      const dateCompare = a.date.localeCompare(b.date);
+      if (dateCompare !== 0) return dateCompare;
+      return a.heure.localeCompare(b.heure);
+    })
     .slice(0, 2);
 
   return (

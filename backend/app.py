@@ -323,11 +323,9 @@ def create_appointment():
         if missing:
             return jsonify({'success': False, 'message': f"Missing fields: {', '.join(missing)}"}), 400
 
-        mapping_statut = {"en attente": "en_attente", "confirmé": "confirme", "annulé": "annule", "reporté": "reporte"}
-        mapping_arrivee = {"en attente": "en_attente", "en salle": "en_salle", "absent": "absent"}
-
-        statut = mapping_statut.get(data.get('statut', 'en_attente'), 'en_attente')
-        arrivee = mapping_arrivee.get(data.get('arrivee', 'en_attente'), 'en_attente')
+        # Use direct values without mapping
+        statut = data.get('statut', 'en_attente')
+        arrivee = data.get('arrivee', 'en_attente')
 
         query_insert = """
         INSERT INTO appointments (date, heure, motif, statut, patient_id, medecin_id, arrivee)
@@ -339,8 +337,17 @@ def create_appointment():
         ))
 
         if appointment_id:
-            # récupérer l'enregistrement complet pour l'envoyer
-            rdv = execute_query("SELECT * FROM appointments WHERE id = %s", (appointment_id,), fetch_one=True)
+            # Return complete appointment data with JOIN
+            query_select = """
+            SELECT a.*,
+                   p.prenom as patient_prenom, p.nom as patient_nom,
+                   m.prenom as medecin_prenom, m.nom as medecin_nom, m.specialite
+            FROM appointments a
+            LEFT JOIN users p ON a.patient_id = p.id
+            LEFT JOIN users m ON a.medecin_id = m.id
+            WHERE a.id = %s
+            """
+            rdv = execute_query(query_select, (appointment_id,), fetch_one=True)
             return jsonify({'success': True, 'data': serialize_row(rdv)})
 
         return jsonify({'success': False, 'message': 'SQL error during creation'}), 500

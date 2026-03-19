@@ -18,9 +18,23 @@ export const AppProvider = ({ children }) => {
       try {
         setLoading(true);
         
-        // Load all data in parallel
-        const [appointmentsRes, doctorsRes, patientsRes, messagesRes] = await Promise.all([
-          appointmentService.getAll(),
+        // Get current user from JWT or localStorage
+        const token = localStorage.getItem('token');
+        let currentUser = null;
+        
+        if (token) {
+          // Decode JWT to get user ID (simple decode for demo)
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          currentUser = payload;
+        }
+        
+        // Load user-specific appointments if user is logged in
+        const appointmentsRes = currentUser 
+          ? await appointmentService.getUserAppointments(currentUser.id)
+          : { success: true, data: [] };
+        
+        // Load other data in parallel
+        const [doctorsRes, patientsRes, messagesRes] = await Promise.all([
           doctorService.getAll(),
           patientService.getAll(),
           messageService.getAllMessages(),
@@ -51,7 +65,17 @@ export const AppProvider = ({ children }) => {
       try {
         const result = await appointmentService.create(appointmentData);
         if (result.success) {
-          setRdvs((prev) => [...prev, result.data]);
+          // Add the new appointment with complete data to the state
+          setRdvs((prev) => {
+            // Remove any existing appointment with same ID (in case of duplicate)
+            const filtered = prev.filter(r => r.id !== result.data.id);
+            // Add the new appointment with all doctor details
+            return [...filtered, result.data].sort((a, b) => {
+              const dateCompare = a.date.localeCompare(b.date);
+              if (dateCompare !== 0) return dateCompare;
+              return a.heure.localeCompare(b.heure);
+            });
+          });
           return { success: true };
         }
         return { success: false, message: result.message };
