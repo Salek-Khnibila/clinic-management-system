@@ -10,6 +10,7 @@ export const AppProvider = ({ children }) => {
   const [messages, setMessages] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Load initial data
@@ -23,15 +24,25 @@ export const AppProvider = ({ children }) => {
         let currentUser = null;
         
         if (token) {
-          // Decode JWT to get user ID (simple decode for demo)
+          // Decode JWT to get user ID (handle both id and sub)
           const payload = JSON.parse(atob(token.split('.')[1]));
           currentUser = payload;
+          console.log("RAW USER PAYLOAD:", currentUser);
+          
+          // Normalize user ID (handle both id and sub)
+          currentUser.id = currentUser.id || currentUser.sub;
+          console.log("NORMALIZED USER:", currentUser);
+          
+          // Set user in context
+          setUser(currentUser);
         }
         
         // Load user-specific appointments if user is logged in
         const appointmentsRes = currentUser 
           ? await appointmentService.getUserAppointments(currentUser.id)
           : { success: true, data: [] };
+        
+        console.log("APPOINTMENTS RESPONSE:", appointmentsRes);
         
         // Load other data in parallel
         const [doctorsRes, patientsRes, messagesRes] = await Promise.all([
@@ -200,19 +211,59 @@ export const AppProvider = ({ children }) => {
     []
   );
 
+  const refreshData = useCallback(
+    async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const currentUser = { ...payload, id: payload.id || payload.sub };
+        
+        console.log("REFRESHING DATA FOR USER:", currentUser);
+        
+        // Reload appointments
+        const appointmentsRes = await appointmentService.getUserAppointments(currentUser.id);
+        if (appointmentsRes.success) {
+          setRdvs(appointmentsRes.data || []);
+          console.log("REFRESHED APPOINTMENTS:", appointmentsRes.data);
+        }
+        
+        // Reload other data if needed
+        const [doctorsRes, patientsRes, messagesRes] = await Promise.all([
+          doctorService.getAll(),
+          patientService.getAll(),
+          messageService.getAllMessages(),
+        ]);
+
+        if (doctorsRes.success) setDoctors(doctorsRes.data || []);
+        if (patientsRes.success) setPatients(patientsRes.data || []);
+        if (messagesRes.success) setMessages(messagesRes.data || []);
+        
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to refresh data:', error);
+        return { success: false, message: "Failed to refresh data" };
+      }
+    },
+    []
+  );
+
   const value = {
     rdvs,
+    messages,
+    doctors,
+    patients,
+    user,
+    loading,
     addRdv,
     validateRdv,
     annulerRdv,
     reporterRdv,
     setArrivee,
-    messages,
     sendMessage,
     markMsgRead,
-    doctors,
-    patients,
-    loading,
+    refreshData,
   };
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

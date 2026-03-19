@@ -1,15 +1,23 @@
-import { useState } from "react";
-import { Bell, Clock, FileText, Heart, Phone, Stethoscope, Users } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, Clock, FileText, Heart, Phone, RefreshCw, Stethoscope, Users } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 
 import { useApp } from "../../contexts/AppContext.jsx";
 import { Avatar, Btn, Card, Modal, SectionTitle, StatusBadge, StatCard } from "../../components/ui/Base.jsx";
 
-export const MedecinAccueil = ({ user }) => {
-  const { rdvs, patients } = useApp();
+export const MedecinAccueil = ({ user: propUser }) => {
+  const { rdvs, patients, user: contextUser, refreshData } = useApp();
+  const user = propUser || contextUser; // Use context user if prop not provided
+  
+  // Refresh data when component mounts or user changes
+  useEffect(() => {
+    if (user?.id) {
+      refreshData();
+    }
+  }, [user?.id, refreshData]);
   
   // Debug logs
-  console.log("USER:", user);
+  console.log("USER (Accueil):", user);
   console.log("RDVS:", rdvs);
   console.log("PATIENTS:", patients);
   
@@ -59,6 +67,15 @@ export const MedecinAccueil = ({ user }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 6, opacity: 0.8 }}>
           <Stethoscope size={13} />
           <span style={{ fontSize: 13 }}>{user.specialite}</span>
+          <Btn
+            variant="ghost"
+            size="sm"
+            icon={RefreshCw}
+            onClick={refreshData}
+            style={{ marginLeft: "auto" }}
+          >
+            Actualiser
+          </Btn>
         </div>
       </div>
 

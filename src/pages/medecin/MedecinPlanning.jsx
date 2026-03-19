@@ -1,13 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 
 import { useApp } from "../../contexts/AppContext.jsx";
 import { Avatar, Card, MiniCalendar, SectionTitle, StatusBadge } from "../../components/ui/Base.jsx";
 
-export const MedecinPlanning = ({ user }) => {
-  const { rdvs } = useApp();
-  const mesRdv = rdvs.filter((r) => r.medecin_id === (user.medecin_id || 1));
+export const MedecinPlanning = ({ user: propUser }) => {
+  const { rdvs, user: contextUser, refreshData } = useApp();
+  const user = propUser || contextUser; // Use context user if prop not provided
+  
+  // Refresh data when component mounts or user changes
+  useEffect(() => {
+    if (user?.id) {
+      refreshData();
+    }
+  }, [user?.id, refreshData]);
+  
+  // Debug logs
+  console.log("USER (Planning):", user);
+  console.log("RDVS (Planning):", rdvs);
+  
+  const mesRdv = rdvs.filter((r) => r.medecin_id === user.id);
+  console.log("MES RDV FILTRÉS (Planning):", mesRdv);
+  
   const [sel, setSel] = useState("2025-03-10");
   const rdvJour = mesRdv.filter((r) => r.date === sel);
 
