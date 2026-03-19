@@ -39,7 +39,7 @@ export const SecretairePlanning = () => {
       (!fDate || r.date === fDate)
   );
 
-  const enAtt = rdvs.filter((r) => r.statut === "en attente");
+  const enAtt = rdvs.filter((r) => r.statut === "en_attente");
 
   return (
     <div>
@@ -71,7 +71,7 @@ export const SecretairePlanning = () => {
             {enAtt.length} RDV en attente
           </span>
           <button
-            onClick={() => setFStat("en attente")}
+            onClick={() => setFStat("en_attente")}
             style={{
               marginLeft: "auto",
               fontSize: 12,
@@ -224,6 +224,7 @@ export const SecretairePlanning = () => {
         )}
 
         {filtered.map((rdv) => {
+          console.log("STATUT RDV:", rdv.statut);
           return (
             <Card
               key={rdv.id}
@@ -239,7 +240,7 @@ export const SecretairePlanning = () => {
                 }}
               >
                 <ArriveeBadge
-                  statut={rdv.arrivee || "en attente"}
+                  statut={rdv.arrivee || "en_attente"}
                 />
                 <div style={{ flex: 1 }}>
                   <div
@@ -317,9 +318,9 @@ export const SecretairePlanning = () => {
                 >
                   Arrivée :
                 </span>
-                <ArriveeBadge statut={rdv.arrivee || "en attente"} />
+                <ArriveeBadge statut={rdv.arrivee || "en_attente"} />
                 <select
-                  value={rdv.arrivee || "en attente"}
+                  value={rdv.arrivee || "en_attente"}
                   onChange={(e) =>
                     setArrivee(rdv.id, e.target.value)
                   }
@@ -335,14 +336,14 @@ export const SecretairePlanning = () => {
                     cursor: "pointer",
                   }}
                 >
-                  <option value="en attente">En attente</option>
-                  <option value="en salle">En salle</option>
+                  <option value="en_attente">En attente</option>
+                  <option value="en_salle">En salle</option>
                   <option value="absent">Absent</option>
                 </select>
               </div>
 
               <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-                {rdv.statut === "en attente" && (
+                {rdv.statut === "en_attente" && (
                   <Btn
                     variant="success"
                     size="sm"
@@ -352,7 +353,7 @@ export const SecretairePlanning = () => {
                     Valider
                   </Btn>
                 )}
-                {rdv.statut !== "annulé" && (
+                {rdv.statut !== "annule" && (
                   <Btn
                     variant="ghost"
                     size="sm"
@@ -365,7 +366,7 @@ export const SecretairePlanning = () => {
                     Reporter
                   </Btn>
                 )}
-                {rdv.statut !== "annulé" && (
+                {rdv.statut !== "annule" && (
                   <Btn
                     variant="danger"
                     size="sm"

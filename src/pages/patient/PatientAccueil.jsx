@@ -48,7 +48,7 @@ export const PatientAccueil = ({ user }) => {
     .filter(
       (r) =>
         r.patient_id === user.patient_id &&
-        (r.statut === "confirmé" || r.statut === "en attente")
+        (r.statut === "confirme" || r.statut === "en_attente")
     )
     .slice(0, 2);
 
@@ -329,7 +329,6 @@ export const PatientAccueil = ({ user }) => {
             }}
           >
             {prochains.map((rdv) => {
-              const m = doctors.find((x) => x.id === rdv.medecin_id);
               return (
                 <Card
                   key={rdv.id}
@@ -356,7 +355,7 @@ export const PatientAccueil = ({ user }) => {
                   >
                     <span
                       style={{
-                        fontSize: 15,
+                        fontSize:15,
                         fontWeight: 900,
                         color: C.tealDk,
                         lineHeight: 1,
@@ -382,7 +381,7 @@ export const PatientAccueil = ({ user }) => {
                         color: C.navy,
                       }}
                     >
-                      Dr. {m?.prenom} {m?.nom}
+                      Dr. {rdv.medecin_prenom} {rdv.medecin_nom}
                     </div>
                     <div
                       style={{
@@ -403,6 +402,11 @@ export const PatientAccueil = ({ user }) => {
                         <Clock size={10} />
                         {rdv.heure}
                       </span>
+                      {rdv.medecin_specialite && (
+                        <span style={{ color: C.gray400 }}>
+                          • {rdv.medecin_specialite}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <StatusBadge statut={rdv.statut} />

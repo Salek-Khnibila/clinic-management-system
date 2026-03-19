@@ -15,15 +15,15 @@ import {
 import { C } from "./designTokens.js";
 
 export const STATUS = {
-  confirmé: { bg: C.greenLt, text: C.green, Icon: CheckCircle, label: "Confirmé" },
-  "en attente": { bg: C.amberLt, text: C.amber, Icon: Clock, label: "En attente" },
-  annulé: { bg: C.redLt, text: C.red, Icon: XCircle, label: "Annulé" },
-  reporté: { bg: C.purpleLt, text: C.purple, Icon: RefreshCw, label: "Reporté" },
+  confirme: { bg: C.greenLt, text: C.green, Icon: CheckCircle, label: "Confirmé" },
+  en_attente: { bg: C.amberLt, text: C.amber, Icon: Clock, label: "En attente" },
+  annule: { bg: C.redLt, text: C.red, Icon: XCircle, label: "Annulé" },
+  reporte: { bg: C.purpleLt, text: C.purple, Icon: RefreshCw, label: "Reporté" },
 };
 
 export const ARRIVEE = {
-  "en salle": { bg: "#D1FAE5", text: "#059669", label: "En salle" },
-  "en attente": { bg: C.amberLt, text: C.amber, label: "En attente" },
+  en_salle: { bg: "#D1FAE5", text: "#059669", label: "En salle" },
+  en_attente: { bg: C.amberLt, text: C.amber, label: "En attente" },
   absent: { bg: C.redLt, text: C.red, label: "Absent" },
 };
 

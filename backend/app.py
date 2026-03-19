@@ -46,6 +46,26 @@ def get_db_connection():
         print(f"Database connection error: {e}")
         return None
 
+def serialize_value(value):
+    """Convertit un objet non-JSON en chaîne ou nombre compatible."""
+    import datetime
+    if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+        return value.isoformat()  # date seulement
+    elif isinstance(value, datetime.datetime):
+        return value.isoformat()  # datetime
+    elif isinstance(value, datetime.time):
+        return value.strftime("%H:%M:%S")
+    elif isinstance(value, datetime.timedelta):
+        # convertit timedelta en nombre total de secondes ou en string hh:mm:ss
+        total_seconds = int(value.total_seconds())
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+    return value
+
+def serialize_row(row):
+    return {k: serialize_value(v) for k, v in row.items()}
+
 def execute_query(query, params=None, fetch_one=False):
     connection = get_db_connection()
     if not connection:
@@ -64,9 +84,10 @@ def execute_query(query, params=None, fetch_one=False):
         cursor.close()
         return result
     except Exception as e:
-        print(f"Query execution error: {e}")
+        print("===== SQL ERROR =====")
+        print(e)
         connection.rollback()
-        return None
+        raise e
     finally:
         connection.close()
 
@@ -92,7 +113,7 @@ def login():
 
         if not all([validate_input(email), validate_input(password), validate_input(role)]):
             log_security_event('INPUT_VALIDATION_FAILED', ip_address=client_ip, details={'email': email})
-            return jsonify({'success': False, 'message': 'Données invalides'}), 400
+            return jsonify({'success': False, 'message': 'Invalid data'}), 400
 
         if not email or not password or not role:
             return jsonify({'success': False, 'message': 'Email, mot de passe et rôle requis'}), 400
@@ -156,10 +177,10 @@ def register():
             data.get('groupe_sanguin'),
         ))
         if user_id:
-            return jsonify({'success': True, 'message': 'Utilisateur créé avec succès'})
-        return jsonify({'success': False, 'message': 'Erreur lors de la création'}), 500
+            return jsonify({'success': True, 'message': 'User created successfully'})
+        return jsonify({'success': False, 'message': 'Error during creation'}), 500
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/auth/refresh', methods=['POST'])
@@ -185,7 +206,7 @@ def refresh():
 def get_my_appointments():
     try:
         from flask_jwt_extended import get_jwt_identity
-        patient_id = get_jwt_identity()  # récupère l'ID du patient connecté
+        patient_id = get_jwt_identity()  # gets the ID of the connected patient
 
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -221,45 +242,22 @@ def get_my_appointments():
 @jwt_required()
 def get_appointments():
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-
         query = """
-        SELECT 
-            a.id,
-            a.date,
-            a.heure,
-            a.statut,
-            a.motif,
-
-            p.prenom AS patient_prenom,
-            p.nom AS patient_nom,
-
-            m.prenom AS medecin_prenom,
-            m.nom AS medecin_nom
-
+        SELECT a.*, 
+               p.prenom AS patient_prenom,
+               p.nom AS patient_nom,
+               m.prenom AS medecin_prenom,
+               m.nom AS medecin_nom,
+               m.specialite AS medecin_specialite
         FROM appointments a
-        JOIN users p ON a.patient_id = p.id
-        JOIN users m ON a.medecin_id = m.id
+        LEFT JOIN users p ON a.patient_id = p.id
+        LEFT JOIN users m ON a.medecin_id = m.id
         ORDER BY a.date DESC, a.heure DESC
         """
-
-        cursor.execute(query)
-        appointments = cursor.fetchall()
-
-        # Convertir les timedelta en string
-        for appt in appointments:
-            for key, value in appt.items():
-                if isinstance(value, timedelta):
-                    appt[key] = str(value)
-
-        cursor.close()
-        conn.close()
-
-        return jsonify({"success": True, "data": appointments})
-
+        rdvs = execute_query(query)
+        return jsonify({'success': True, 'data': [serialize_row(r) for r in rdvs]})
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/appointments/user/<int:user_id>', methods=['GET'])
@@ -278,9 +276,9 @@ def get_user_appointments(user_id):
         ORDER BY a.date DESC, a.heure DESC
         """
         appointments = execute_query(query, (user_id, user_id))
-        return jsonify({'success': True, 'data': appointments or []})
+        return jsonify({'success': True, 'data': [serialize_row(r) for r in (appointments or [])]})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/appointments/slots/<int:medecin_id>/<string:rdv_date>', methods=['GET'])
@@ -290,7 +288,7 @@ def get_available_slots(medecin_id, rdv_date):
     try:
         query = """
         SELECT heure FROM appointments
-        WHERE medecin_id = %s AND date = %s AND statut NOT IN ('annulé')
+        WHERE medecin_id = %s AND date = %s AND statut NOT IN ('annule')
         """
         booked = execute_query(query, (medecin_id, rdv_date))
         booked_hours = [r['heure'] for r in (booked or [])]
@@ -311,40 +309,46 @@ def get_available_slots(medecin_id, rdv_date):
         available = [s for s in all_slots if s not in booked_str]
         return jsonify({'success': True, 'data': available})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/appointments', methods=['POST'])
 @jwt_required()
 def create_appointment():
     try:
-        data = request.get_json()
-        if not isinstance(data, dict):
-            return jsonify({'success': False, 'message': 'Données JSON invalides'}), 400
+        data = request.get_json(force=True)
 
         required_fields = ['date', 'heure', 'motif', 'patient_id', 'medecin_id']
         missing = [f for f in required_fields if f not in data]
         if missing:
-            return jsonify({'success': False, 'message': f"Champs manquants: {', '.join(missing)}"}), 400
+            return jsonify({'success': False, 'message': f"Missing fields: {', '.join(missing)}"}), 400
 
-        query = """
+        mapping_statut = {"en attente": "en_attente", "confirmé": "confirme", "annulé": "annule", "reporté": "reporte"}
+        mapping_arrivee = {"en attente": "en_attente", "en salle": "en_salle", "absent": "absent"}
+
+        statut = mapping_statut.get(data.get('statut', 'en_attente'), 'en_attente')
+        arrivee = mapping_arrivee.get(data.get('arrivee', 'en_attente'), 'en_attente')
+
+        query_insert = """
         INSERT INTO appointments (date, heure, motif, statut, patient_id, medecin_id, arrivee)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
-        appointment_id = execute_query(query, (
-            data['date'],
-            data['heure'],
-            data['motif'],
-            data.get('statut', 'en attente'),
-            data['patient_id'],
-            data['medecin_id'],
-            data.get('arrivee', 'en attente'),
+        appointment_id = execute_query(query_insert, (
+            data['date'], data['heure'], data['motif'], statut,
+            data['patient_id'], data['medecin_id'], arrivee
         ))
+
         if appointment_id:
-            return jsonify({'success': True, 'data': {'id': appointment_id}})
-        return jsonify({'success': False, 'message': 'Erreur lors de la création'}), 500
+            # récupérer l'enregistrement complet pour l'envoyer
+            rdv = execute_query("SELECT * FROM appointments WHERE id = %s", (appointment_id,), fetch_one=True)
+            return jsonify({'success': True, 'data': serialize_row(rdv)})
+
+        return jsonify({'success': False, 'message': 'SQL error during creation'}), 500
+
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/appointments/<int:appointment_id>', methods=['PUT'])
@@ -358,55 +362,64 @@ def update_appointment(appointment_id):
         if not data:
             return jsonify({'success': False, 'message': 'Donnees manquantes'}), 400
 
-        # 🔹 Mapping des statuts humains vers ENUM
-        mapping_statut = {
-            "en attente": "en_attente",
-            "confirmé": "confirme", 
-            "annulé": "annule",
-            "reporté": "reporte"
-        }
-
         # 🔹 Filtrer et mapper les champs
         allowed_fields = {'date', 'heure', 'motif', 'statut', 'arrivee'}
         fields = []
         params = []
         for key, value in data.items():
             if key in allowed_fields and value is not None:
-                # Mapping spécial pour statut et arrivee
+                # Validation stricte pour statut
                 if key == 'statut':
-                    mapped_value = mapping_statut.get(str(value), str(value))
-                    fields.append(f"{key} = %s")
-                    params.append(mapped_value)
+                    value = str(value).strip()
+                    print("STATUT RECU:", value)
+                    allowed_statuts = {'en_attente', 'confirme', 'annule', 'reporte'}
+                    
+                    if value not in allowed_statuts:
+                        return jsonify({
+                            'success': False,
+                            'message': f'Invalid status: {value}'
+                        }), 400
+                    
+                    fields.append("statut = %s")
+                    params.append(value)
                 elif key == 'arrivee':
-                    # Mapping arrivee si nécessaire
-                    mapping_arrivee = {
-                        "en attente": "en_attente",
-                        "en salle": "en_salle",
-                        "absent": "absent"
-                    }
-                    mapped_value = mapping_arrivee.get(str(value), str(value))
-                    fields.append(f"{key} = %s")
-                    params.append(mapped_value)
+                    # Validation stricte pour arrivee
+                    value = str(value).strip()
+                    print("ARRIVEE RECU:", value)
+                    allowed_arrivee = {'en_attente', 'en_salle', 'absent'}
+                    
+                    if value not in allowed_arrivee:
+                        return jsonify({
+                            'success': False,
+                            'message': f'Invalid arrival: {value}'
+                        }), 400
+                    
+                    fields.append("arrivee = %s")
+                    params.append(value)
                 else:
                     fields.append(f"{key} = %s")
                     params.append(value)
 
         if not fields:
-            return jsonify({'success': False, 'message': 'Aucun champ valide fourni'}), 400
+            return jsonify({'success': False, 'message': 'No valid field provided'}), 400
 
         query = f"UPDATE appointments SET {', '.join(fields)} WHERE id = %s"
         params.append(appointment_id)
         rows_affected = execute_query(query, params)
 
-        # 🔹 Nouvelle logique robuste
-        if rows_affected is None:
-            # Erreur SQL
-            return jsonify({'success': False, 'message': 'Erreur SQL lors de la mise a jour'}), 500
-        elif rows_affected == 0:
-            # Ligne existante mais aucune valeur modifiée
-            return jsonify({'success': True, 'message': 'Rendez-vous deja a jour'})
-        else:
-            return jsonify({'success': True, 'message': 'Rendez-vous mis a jour'})
+        print("ROWS AFFECTED:", rows_affected)
+
+        if rows_affected == 0:
+            return jsonify({
+                'success': False,
+                'message': 'No changes made (check ID or value)'
+            }), 400
+
+        return jsonify({
+            'success': True,
+            'message': 'Appointment updated'
+        })
+        
     except Exception as e:
         import traceback
         print("===== ERREUR COMPLETE UPDATE APPOINTMENT =====")
@@ -425,10 +438,10 @@ def delete_appointment(appointment_id):
     try:
         rows_affected = execute_query("DELETE FROM appointments WHERE id = %s", (appointment_id,))
         if rows_affected is not None and rows_affected > 0:
-            return jsonify({'success': True, 'message': 'Rendez-vous supprime'})
-        return jsonify({'success': False, 'message': 'Rendez-vous introuvable'}), 404
+            return jsonify({'success': True, 'message': 'Appointment deleted'})
+        return jsonify({'success': False, 'message': 'Appointment not found'}), 404
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 # ══════════════════════════════════════════════
@@ -447,7 +460,7 @@ def get_doctors():
         doctors = execute_query(query)
         return jsonify({'success': True, 'data': doctors or []})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/doctors/<int:doctor_id>', methods=['GET'])
@@ -461,9 +474,9 @@ def get_doctor(doctor_id):
         doctor = execute_query(query, (doctor_id,), fetch_one=True)
         if doctor:
             return jsonify({'success': True, 'data': doctor})
-        return jsonify({'success': False, 'message': 'Médecin introuvable'}), 404
+        return jsonify({'success': False, 'message': 'Doctor not found'}), 404
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/doctors/specialty/<string:specialty>', methods=['GET'])
@@ -478,7 +491,7 @@ def get_doctors_by_specialty(specialty):
         doctors = execute_query(query, (f'%{specialty}%',))
         return jsonify({'success': True, 'data': doctors or []})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/doctors/city/<string:city>', methods=['GET'])
@@ -493,7 +506,7 @@ def get_doctors_by_city(city):
         doctors = execute_query(query, (f'%{city}%',))
         return jsonify({'success': True, 'data': doctors or []})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/doctors/search', methods=['GET'])
@@ -511,7 +524,7 @@ def search_doctors():
         doctors = execute_query(query, (pattern, pattern, pattern, pattern))
         return jsonify({'success': True, 'data': doctors or []})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 # ══════════════════════════════════════════════
@@ -531,7 +544,7 @@ def get_patients():
         patients = execute_query(query)
         return jsonify({'success': True, 'data': patients or []})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/patients/<int:patient_id>', methods=['GET'])
@@ -546,9 +559,9 @@ def get_patient(patient_id):
         patient = execute_query(query, (patient_id,), fetch_one=True)
         if patient:
             return jsonify({'success': True, 'data': patient})
-        return jsonify({'success': False, 'message': 'Patient introuvable'}), 404
+        return jsonify({'success': False, 'message': 'Patient not found'}), 404
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/patients/<int:patient_id>', methods=['PUT'])
@@ -565,19 +578,19 @@ def update_patient(patient_id):
                 params.append(value)
 
         if not fields:
-            return jsonify({'success': False, 'message': 'Aucun champ valide fourni'}), 400
+            return jsonify({'success': False, 'message': 'No valid field provided'}), 400
 
         query = f"UPDATE users SET {', '.join(fields)} WHERE id = %s AND role = 'patient'"
         params.append(patient_id)
         rows_affected = execute_query(query, params)
 
         if rows_affected is not None and rows_affected > 0:
-            return jsonify({'success': True, 'message': 'Profil mis a jour'})
+            return jsonify({'success': True, 'message': 'Profile updated'})
         elif rows_affected == 0:
-            return jsonify({'success': False, 'message': 'Patient introuvable'}), 404
-        return jsonify({'success': False, 'message': 'Erreur lors de la mise a jour'}), 500
+            return jsonify({'success': False, 'message': 'Patient not found'}), 404
+        return jsonify({'success': False, 'message': 'Error during update'}), 500
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 # ══════════════════════════════════════════════
@@ -597,7 +610,7 @@ def get_messages():
         messages = execute_query(query)
         return jsonify({'success': True, 'data': messages or []})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/messages/patient/<int:patient_id>', methods=['GET'])
@@ -614,7 +627,7 @@ def get_patient_messages(patient_id):
         messages = execute_query(query, (patient_id,))
         return jsonify({'success': True, 'data': messages or []})
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/messages', methods=['POST'])
@@ -623,7 +636,7 @@ def send_message():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'success': False, 'message': 'Données JSON invalides'}), 400
+            return jsonify({'success': False, 'message': 'Invalid JSON data'}), 400
 
         # Valeurs par défaut si champ absent
         sender = data.get('sender', 'secretaire')
@@ -634,10 +647,10 @@ def send_message():
 
         # Validation des champs requis
         if not to_patient_id:
-            return jsonify({'success': False, 'message': "to_patient_id manquant"}), 400
+            return jsonify({'success': False, 'message': "to_patient_id missing"}), 400
 
         if not corps.strip():
-            return jsonify({'success': False, 'message': 'Champs requis manquants'}), 400
+            return jsonify({'success': False, 'message': 'Required fields missing'}), 400
 
         query = """
         INSERT INTO messages (sender, to_patient_id, sujet, corps, date)
@@ -656,9 +669,9 @@ def send_message():
             message = execute_query(select_query, (message_id,))
             return jsonify({'success': True, 'data': message[0] if message else None})
 
-        return jsonify({'success': False, 'message': "Erreur lors de l'envoi"}), 500
+        return jsonify({'success': False, 'message': "Error during sending"}), 500
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 @app.route('/api/messages/<int:message_id>/read', methods=['PUT'])
@@ -669,10 +682,10 @@ def mark_message_read(message_id):
             "UPDATE messages SET lu = TRUE WHERE id = %s", (message_id,)
         )
         if rows_affected is not None and rows_affected > 0:
-            return jsonify({'success': True, 'message': 'Message marqué comme lu'})
-        return jsonify({'success': False, 'message': 'Message introuvable'}), 404
+            return jsonify({'success': True, 'message': 'Message marked as read'})
+        return jsonify({'success': False, 'message': 'Message not found'}), 404
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Erreur: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 
 # ══════════════════════════════════════════════
@@ -685,7 +698,7 @@ def health_check():
     return jsonify({
         'status': 'OK',
         'database': 'connected' if db_ok else 'disconnected',
-        'message': 'Backend Flask opérationnel',
+        'message': 'Flask backend operational',
     })
 
 

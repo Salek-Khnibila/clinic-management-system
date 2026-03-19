@@ -24,7 +24,7 @@ export const BookingWizard = ({ med, onClose, onConfirm }) => {
       (r) =>
         r.medecin_id === med.id &&
         r.date === date &&
-        r.statut !== "annulé"
+        r.statut !== "annule"
     )
     .map((r) => r.heure);
 
@@ -34,7 +34,7 @@ export const BookingWizard = ({ med, onClose, onConfirm }) => {
       date,
       heure: slot,
       motif,
-      statut: "en attente",
+      statut: "en_attente",
     });
     setDone(true);
   };

@@ -30,7 +30,7 @@ export const Avatar = ({ name = "", color = C.teal, size = 40 }) => (
 );
 
 export const StatusBadge = ({ statut }) => {
-  const s = STATUS[statut] || STATUS["en attente"];
+  const s = STATUS[statut] || STATUS["en_attente"];
   return (
     <span
       style={{
@@ -53,7 +53,7 @@ export const StatusBadge = ({ statut }) => {
 };
 
 export const ArriveeBadge = ({ statut }) => {
-  const s = ARRIVEE[statut] || ARRIVEE["en attente"];
+  const s = ARRIVEE[statut] || ARRIVEE["en_attente"];
   return (
     <span
       style={{

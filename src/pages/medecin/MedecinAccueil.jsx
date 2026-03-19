@@ -14,7 +14,7 @@ export const MedecinAccueil = ({ user }) => {
   );
   const [motifMod, setMotifMod] = useState(null);
 
-  const enAttente = mesRdv.filter((r) => r.statut === "en attente").length;
+  const enAttente = mesRdv.filter((r) => r.statut === "en_attente").length;
 
   return (
     <div>
@@ -70,7 +70,7 @@ export const MedecinAccueil = ({ user }) => {
         />
         <StatCard
           label="Confirmés"
-          value={mesRdv.filter((r) => r.statut === "confirmé").length}
+          value={mesRdv.filter((r) => r.statut === "confirme").length}
           Icon={Heart}
           color={C.green}
         />

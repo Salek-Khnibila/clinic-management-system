@@ -59,7 +59,7 @@ class TestAuthentication:
         assert data['user']['email'] == 'test@example.com'
     
     def test_login_invalid_credentials(self, client, mock_db):
-        """Test login avec identifiants invalides"""
+        """Test login with invalid credentials"""
         # Mock utilisateur non trouvé
         mock_db.cursor.return_value.fetchone.return_value = None
         
@@ -292,7 +292,7 @@ class TestSecurity:
         assert response.status_code == 401
     
     def test_invalid_token(self, client):
-        """Test token invalide"""
+        """Test invalid token"""
         response = client.get('/api/appointments',
                              headers={'Authorization': 'Bearer invalid-token'})
         assert response.status_code == 422

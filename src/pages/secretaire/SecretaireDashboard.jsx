@@ -5,7 +5,7 @@ import { Avatar, Card, SectionTitle, StatCard, StatusBadge } from "../../compone
 
 export const SecretaireDashboard = ({ onNavigate }) => {
   const { rdvs, doctors, patients } = useApp();
-  const enAtt = rdvs.filter((r) => r.statut === "en attente").length;
+  const enAtt = rdvs.filter((r) => r.statut === "en_attente").length;
 
   return (
     <div>

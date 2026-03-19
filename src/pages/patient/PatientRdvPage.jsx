@@ -96,7 +96,7 @@ export const PatientRdvPage = ({ user }) => {
               paddingBottom: 2,
             }}
           >
-            {["tous", "confirmé", "en attente", "annulé"].map((f) => {
+            {["tous", "confirme", "en_attente", "annule"].map((f) => {
               const active = filter === f;
               return (
                 <button
