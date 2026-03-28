@@ -1,0 +1,142 @@
+@startuml
+!theme plain
+skinparam monochrome true
+
+'============================================
+' Diagramme de Classes
+'============================================
+
+package "Authentification" {
+  class User {
+    -id: int
+    -prenom: string
+    -nom: string
+    -email: string
+    -password: string
+    -role: string
+    +login(email, password): boolean
+    +logout(): void
+    +updateProfile(data): boolean
+  }
+
+  class AuthToken {
+    -token: string
+    -refreshToken: string
+    -expiresAt: Date
+    +isValid(): boolean
+    +refresh(): string
+  }
+
+  User "1" -- "*" AuthToken : possesses
+}
+
+package "Rendez-vous" {
+  class Appointment {
+    -id: int
+    -date: Date
+    -heure: string
+    -motif: string
+    -statut: enum
+    -patientId: int
+    -medecinId: int
+    -arrivee: enum
+    +create(): boolean
+    +update(): boolean
+    +cancel(): boolean
+    +reschedule(newDate): boolean
+  }
+
+  enum AppointmentStatus {
+    EN_ATTENTE
+    CONFIRME
+    ANNULE
+    REPORTE
+  }
+
+  enum ArrivalStatus {
+    EN_ATTENTE
+    EN_SALLE
+    ABSENT
+  }
+
+  class TimeSlot {
+    -heure: string
+    -disponible: boolean
+    +isAvailable(): boolean
+    +book(): boolean
+  }
+}
+
+package "Médical" {
+  class Doctor {
+    -id: int
+    -prenom: string
+    -nom: string
+    -specialite: string
+    -ville: string
+    -tarif: string
+    -disponibilites: TimeSlot[]
+    +getAvailableSlots(date): TimeSlot[]
+    +updateAvailability(slots): boolean
+  }
+
+  class Patient {
+    -id: int
+    -prenom: string
+    -nom: string
+    -email: string
+    -telephone: string
+    -groupeSanguin: string
+    -historique: Appointment[]
+    +bookAppointment(doctor, date, heure): boolean
+  }
+
+  class MedicalRecord {
+    -id: int
+    -patientId: int
+    -date: Date
+    -diagnostic: string
+    -traitement: string
+    -ordonnance: string
+    +create(): boolean
+    +update(): boolean
+  }
+}
+
+package "Communication" {
+  class Message {
+    -id: int
+    -from: string
+    -toPatientId: int
+    -sujet: string
+    -corps: string
+    -date: Date
+    -lu: boolean
+    +markAsRead(): boolean
+    +send(): boolean
+  }
+
+  class Notification {
+    -id: int
+    -userId: int
+    -type: string
+    -contenu: string
+    -date: Date
+    -lue: boolean
+    +send(): boolean
+    +markAsRead(): boolean
+  }
+}
+
+'============================================
+' Relations entre classes
+'============================================
+
+User "1" -- "*" Appointment : books
+Doctor "1" -- "*" Appointment : has
+Patient "1" -- "*" Appointment : has
+User "1" -- "*" Message : sends/receives
+Patient "1" -- "*" MedicalRecord : has
+Doctor "1" -- "*" TimeSlot : has
+
+@enduml

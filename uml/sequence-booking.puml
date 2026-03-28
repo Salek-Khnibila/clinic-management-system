@@ -1,0 +1,48 @@
+@startuml
+!theme plain
+skinparam monochrome true
+
+'============================================
+' Diagramme de Séquence - Prise de Rendez-vous
+'============================================
+
+actor Patient
+actor "System Frontend" as Frontend
+actor "API Backend" as API
+database "Database" as DB
+
+Patient -> Frontend: Clique sur "Prendre RDV"
+activate Frontend
+
+Frontend -> Frontend: Affiche formulaire de RDV
+Frontend -> Frontend: Sélectionne médecin et date
+Frontend -> API: GET /doctors/{id}/slots/{date}
+activate API
+
+API -> DB: Query available time slots
+activate DB
+DB --> API: Return available slots
+deactivate DB
+
+API --> Frontend: Return time slots
+deactivate API
+
+Frontend -> Patient: Affiche créneaux disponibles
+Patient -> Frontend: Sélectionne créneau
+Frontend -> Frontend: Remplit motif de consultation
+Frontend -> API: POST /appointments
+activate API
+
+API -> API: Validate appointment data
+API -> DB: INSERT appointment
+activate DB
+DB --> API: Appointment created
+deactivate DB
+
+API --> Frontend: Return confirmation
+deactivate API
+
+Frontend -> Patient: Affiche confirmation RDV
+deactivate Frontend
+
+@enduml
