@@ -40,8 +40,9 @@ def create_app():
     from routes.doctors      import doctors_bp
     from routes.patients     import patients_bp
     from routes.messages     import messages_bp
+    from routes.admin        import admin_bp
 
-    for bp in (auth_bp, appointments_bp, doctors_bp, patients_bp, messages_bp):
+    for bp in (auth_bp, appointments_bp, doctors_bp, patients_bp, messages_bp, admin_bp):
         app.register_blueprint(bp)
 
     # ── Global error handlers ─────────────────────────────────────────────────
