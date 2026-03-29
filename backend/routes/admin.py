@@ -1,6 +1,7 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt
 from db import execute_query
+import bcrypt
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/api/admin")
 
@@ -48,3 +49,33 @@ def delete_user(user_id):
 
     execute_query("DELETE FROM users WHERE id = %s", (user_id,))
     return jsonify({'success': True, 'message': 'User deleted successfully'})
+
+
+# ── PUT /api/admin/users/<id>/password  (admin change le mdp d'un user) ──────
+@admin_bp.route('/users/<int:user_id>/password', methods=['PUT'])
+@jwt_required()
+def change_user_password(user_id):
+    """Admin change le mot de passe d'un secrétaire ou médecin."""
+    if not _require_admin():
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    data         = request.get_json(silent=True) or {}
+    new_password = data.get('new_password', '')
+
+    if not new_password or len(new_password) < 8:
+        return jsonify({'success': False, 'message': 'Password must be at least 8 characters'}), 400
+
+    user = execute_query(
+        "SELECT id, role FROM users WHERE id = %s", (user_id,), fetch_one=True
+    )
+    if not user:
+        return jsonify({'success': False, 'message': 'User not found'}), 404
+
+    # 🔒 Seuls secrétaires et médecins peuvent être modifiés par l'admin
+    if user['role'] not in ('secretaire', 'medecin'):
+        return jsonify({'success': False, 'message': 'Cannot modify this account type'}), 403
+
+    hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    execute_query("UPDATE users SET password = %s WHERE id = %s", (hashed, user_id))
+
+    return jsonify({'success': True, 'message': 'Password updated successfully'})

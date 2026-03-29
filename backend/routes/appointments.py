@@ -18,21 +18,21 @@ SELECT_FULL = """
 
 
 def _get_claims():
-    """Retourne (user_id:int, role:str) depuis le JWT — jamais depuis le body."""
+    """Returns (user_id:int, role:str) from JWT — never from request body."""
     claims  = get_jwt()
     user_id = int(get_jwt_identity())
     role    = claims.get('role', '')
     return user_id, role
 
 
-# ── GET /api/appointments  (secrétaire uniquement) ───────────────────────────
+# ── GET /api/appointments  (secretaire only) ──────────────────────────────────
 @appointments_bp.route('', methods=['GET'])
 @jwt_required()
 def get_all():
     _, role = _get_claims()
-    # 🔒 Seule la secrétaire peut voir tous les RDV
+    # 🔒 Only the secretary can view all appointments
     if role != 'secretaire':
-        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
     rdvs = execute_query(SELECT_FULL + " ORDER BY a.date DESC, a.heure DESC")
     return jsonify({'success': True, 'data': [serialize_row(r) for r in (rdvs or [])]})
 
@@ -43,9 +43,9 @@ def get_all():
 def get_user_appointments(user_id):
     current_id, role = _get_claims()
 
-    # 🔒 Un utilisateur ne peut voir que ses propres RDV
+    # 🔒 A user can only view their own appointments
     if role != 'secretaire' and current_id != user_id:
-        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
 
     if role == 'secretaire':
         rdvs = execute_query(SELECT_FULL + " ORDER BY a.date DESC, a.heure DESC")
@@ -60,7 +60,7 @@ def get_user_appointments(user_id):
             (current_id,)
         )
     else:
-        return jsonify({'success': False, 'message': 'Rôle inconnu'}), 403
+        return jsonify({'success': False, 'message': 'Unknown role'}), 403
 
     return jsonify({'success': True, 'data': [serialize_row(r) for r in (rdvs or [])]})
 
@@ -96,41 +96,98 @@ def create():
     current_id, role = _get_claims()
     data = request.get_json(silent=True) or {}
 
-    # 🔒 Médecin ne peut pas créer de RDV
+    # 🔒 Doctor cannot create appointments
     if role == 'medecin':
-        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
 
     required = ['medecin_id', 'date', 'heure', 'motif']
     missing  = [f for f in required if not data.get(f)]
     if missing:
-        return jsonify({'success': False, 'message': f"Champs manquants : {', '.join(missing)}"}), 400
+        return jsonify({'success': False, 'message': f"Missing fields: {', '.join(missing)}"}), 400
 
-    # 🔒 patient_id forcé depuis le JWT pour un patient (non falsifiable)
+    # 🔒 patient_id is forced from JWT for patients (cannot be forged)
     if role == 'patient':
         patient_id = current_id
     else:
         if not data.get('patient_id'):
-            return jsonify({'success': False, 'message': 'patient_id requis'}), 400
+            return jsonify({'success': False, 'message': 'patient_id is required'}), 400
         patient_id = int(data['patient_id'])
 
     medecin_id = int(data['medecin_id'])
 
-    # Vérifications d'existence
+    # Existence checks
     medecin = execute_query("SELECT id FROM users WHERE id = %s AND role = 'medecin'", (medecin_id,), fetch_one=True)
     if not medecin:
-        return jsonify({'success': False, 'message': 'Médecin introuvable'}), 404
+        return jsonify({'success': False, 'message': 'Doctor not found'}), 404
 
     patient = execute_query("SELECT id FROM users WHERE id = %s AND role = 'patient'", (patient_id,), fetch_one=True)
     if not patient:
-        return jsonify({'success': False, 'message': 'Patient introuvable'}), 404
+        return jsonify({'success': False, 'message': 'Patient not found'}), 404
 
-    # Vérification doublon
+    # ── 🔒 Check 1: Max 3 active appointments per patient ────────────────────
+    MAX_ACTIVE_RDV = 3
+    active_count = execute_query("""
+        SELECT COUNT(*) AS cnt FROM appointments
+        WHERE patient_id = %s AND statut IN ('en_attente', 'confirme')
+    """, (patient_id,), fetch_one=True)
+
+    if active_count and active_count['cnt'] >= MAX_ACTIVE_RDV:
+        return jsonify({
+            'success': False,
+            'message': f'Limit of {MAX_ACTIVE_RDV} active appointments reached. Please cancel an existing appointment before creating a new one.',
+            'code': 'MAX_RDV_REACHED'
+        }), 409
+
+    # ── 🔒 Check 2: Progressive minimum delay between patient appointments ────
+    # Delay = number_of_active_appointments × 1 hour
+    if active_count and active_count['cnt'] > 0:
+        from datetime import datetime, timedelta
+        delay_hours = int(active_count['cnt'])
+        last_rdv = execute_query("""
+            SELECT date, heure FROM appointments
+            WHERE patient_id = %s AND statut IN ('en_attente', 'confirme')
+            ORDER BY date DESC, heure DESC LIMIT 1
+        """, (patient_id,), fetch_one=True)
+
+        if last_rdv:
+            h = last_rdv['heure']
+            last_heure_str = f"{h.seconds // 3600:02}:{(h.seconds % 3600) // 60:02}" if hasattr(h, 'seconds') else str(h)[:5]
+            last_dt  = datetime.strptime(f"{last_rdv['date']} {last_heure_str}", "%Y-%m-%d %H:%M")
+            new_dt   = datetime.strptime(f"{data['date']} {data['heure']}", "%Y-%m-%d %H:%M")
+            if abs(new_dt - last_dt) < timedelta(hours=delay_hours):
+                return jsonify({
+                    'success': False,
+                    'message': f'A minimum delay of {delay_hours}h is required between your appointments (you have {delay_hours} active appointment(s)).',
+                    'code': 'DELAY_REQUIRED'
+                }), 409
+
+    # ── 🔒 Check 3: Exact slot conflict for doctor ────────────────────────────
     existing = execute_query(
         "SELECT id FROM appointments WHERE medecin_id=%s AND date=%s AND heure=%s AND statut != 'annule'",
         (medecin_id, data['date'], data['heure']), fetch_one=True
     )
     if existing:
-        return jsonify({'success': False, 'message': 'Ce créneau est déjà réservé'}), 409
+        return jsonify({'success': False, 'message': 'This time slot is already reserved for this doctor.', 'code': 'SLOT_TAKEN'}), 409
+
+    # ── 🔒 Check 4: Doctor schedule conflict (30 min buffer) ─────────────────
+    try:
+        from datetime import datetime, timedelta
+        new_dt       = datetime.strptime(f"{data['date']} {data['heure']}", "%Y-%m-%d %H:%M")
+        buffer_start = (new_dt - timedelta(minutes=29)).strftime("%H:%M")
+        buffer_end   = (new_dt + timedelta(minutes=29)).strftime("%H:%M")
+        conflict = execute_query("""
+            SELECT id FROM appointments
+            WHERE medecin_id = %s AND date = %s AND statut != 'annule'
+              AND TIME(heure) > %s AND TIME(heure) < %s
+        """, (medecin_id, data['date'], buffer_start, buffer_end), fetch_one=True)
+        if conflict:
+            return jsonify({
+                'success': False,
+                'message': 'This time slot is too close to another appointment (30 minutes minimum between consultations).',
+                'code': 'CONFLICT'
+            }), 409
+    except Exception:
+        pass
 
     appt_id = execute_query("""
         INSERT INTO appointments (date, heure, motif, statut, patient_id, medecin_id, arrivee)
@@ -141,7 +198,7 @@ def create():
         rdv = execute_query(SELECT_FULL + " WHERE a.id = %s", (appt_id,), fetch_one=True)
         return jsonify({'success': True, 'data': serialize_row(rdv)}), 201
 
-    return jsonify({'success': False, 'message': 'Erreur lors de la création'}), 500
+    return jsonify({'success': False, 'message': 'Error creating appointment'}), 500
 
 
 # ── PUT /api/appointments/<id> ────────────────────────────────────────────────
@@ -153,41 +210,41 @@ def update(appt_id):
 
     appt = execute_query("SELECT * FROM appointments WHERE id = %s", (appt_id,), fetch_one=True)
     if not appt:
-        return jsonify({'success': False, 'message': 'RDV introuvable'}), 404
+        return jsonify({'success': False, 'message': 'Appointment not found'}), 404
 
-    # 🔒 Permissions strictes par rôle
+    # 🔒 Strict role-based permissions
     if role == 'patient':
         if current_id != appt['patient_id']:
-            return jsonify({'success': False, 'message': 'Accès refusé'}), 403
-        # Patient peut seulement annuler son RDV
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+        # Patient can only cancel their appointment
         allowed_keys = {'statut'}
         if set(data.keys()) - allowed_keys:
-            return jsonify({'success': False, 'message': 'Action non autorisée pour un patient'}), 403
+            return jsonify({'success': False, 'message': 'Action not allowed for a patient'}), 403
         if data.get('statut') != 'annule':
-            return jsonify({'success': False, 'message': 'Un patient ne peut qu\'annuler un RDV'}), 403
+            return jsonify({'success': False, 'message': 'A patient can only cancel an appointment'}), 403
 
     elif role == 'medecin':
         if current_id != appt['medecin_id']:
-            return jsonify({'success': False, 'message': 'Accès refusé'}), 403
-        # Médecin peut confirmer, reporter, modifier arrivée
+            return jsonify({'success': False, 'message': 'Access denied'}), 403
+        # Doctor can confirm, reschedule, update arrival
         allowed_keys = {'statut', 'arrivee', 'date', 'heure'}
         if set(data.keys()) - allowed_keys:
-            return jsonify({'success': False, 'message': 'Action non autorisée pour un médecin'}), 403
+            return jsonify({'success': False, 'message': 'Action not allowed for a doctor'}), 403
 
     elif role != 'secretaire':
-        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
 
-    # Construction de la requête UPDATE dynamique
+    # Dynamic UPDATE query
     fields, params = [], []
 
     if 'statut' in data:
         if data['statut'] not in VALID_STATUTS:
-            return jsonify({'success': False, 'message': f'Statut invalide'}), 400
+            return jsonify({'success': False, 'message': 'Invalid status'}), 400
         fields.append("statut = %s"); params.append(data['statut'])
 
     if 'arrivee' in data and role in ('medecin', 'secretaire'):
         if data['arrivee'] not in VALID_ARRIVEE:
-            return jsonify({'success': False, 'message': 'Arrivée invalide'}), 400
+            return jsonify({'success': False, 'message': 'Invalid arrival status'}), 400
         fields.append("arrivee = %s"); params.append(data['arrivee'])
 
     if 'date' in data and role in ('medecin', 'secretaire'):
@@ -200,22 +257,22 @@ def update(appt_id):
         fields.append("motif = %s"); params.append(data['motif'].strip())
 
     if not fields:
-        return jsonify({'success': False, 'message': 'Aucun champ valide fourni'}), 400
+        return jsonify({'success': False, 'message': 'No valid fields provided'}), 400
 
     params.append(appt_id)
     execute_query(f"UPDATE appointments SET {', '.join(fields)} WHERE id = %s", params)
-    return jsonify({'success': True, 'message': 'Rendez-vous mis à jour'})
+    return jsonify({'success': True, 'message': 'Appointment updated'})
 
 
-# ── DELETE /api/appointments/<id>  (secrétaire uniquement) ───────────────────
+# ── DELETE /api/appointments/<id>  (secretaire only) ─────────────────────────
 @appointments_bp.route('/<int:appt_id>', methods=['DELETE'])
 @jwt_required()
 def delete(appt_id):
     _, role = _get_claims()
-    # 🔒 Seule la secrétaire peut supprimer définitivement
+    # 🔒 Only the secretary can permanently delete
     if role != 'secretaire':
-        return jsonify({'success': False, 'message': 'Accès refusé'}), 403
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
     rows = execute_query("DELETE FROM appointments WHERE id = %s", (appt_id,))
     if rows:
-        return jsonify({'success': True, 'message': 'RDV supprimé'})
-    return jsonify({'success': False, 'message': 'RDV introuvable'}), 404
+        return jsonify({'success': True, 'message': 'Appointment deleted'})
+    return jsonify({'success': False, 'message': 'Appointment not found'}), 404

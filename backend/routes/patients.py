@@ -16,7 +16,7 @@ def _get_claims():
 @jwt_required()
 def get_all():
     _, role = _get_claims()
-    # 🔒 Seuls secrétaire et médecin peuvent lister tous les patients
+    # 🔒 Only secretary and doctor can list all patients
     if role not in ('secretaire', 'medecin'):
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     patients = execute_query(
@@ -29,7 +29,7 @@ def get_all():
 @jwt_required()
 def get_by_id(patient_id):
     current_id, role = _get_claims()
-    # 🔒 Un patient ne peut voir que son propre profil
+    # 🔒 A patient can only view their own profile
     if role == 'patient' and current_id != patient_id:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
     patient = execute_query(
@@ -45,12 +45,12 @@ def get_by_id(patient_id):
 @jwt_required()
 def update(patient_id):
     current_id, role = _get_claims()
-    # 🔒 Un patient ne peut modifier que son propre profil
+    # 🔒 A patient can only update their own profile
     if role == 'patient' and current_id != patient_id:
         return jsonify({'success': False, 'message': 'Access denied'}), 403
 
     data = request.get_json(silent=True) or {}
-    # 🔒 Champs modifiables — jamais le mot de passe ni le rôle ici
+    # 🔒 Allowed fields — never password or role
     ALLOWED = {'prenom', 'nom', 'telephone', 'groupe_sanguin'}
     fields, params = [], []
     for key, value in data.items():
@@ -59,7 +59,7 @@ def update(patient_id):
             params.append(value)
 
     if not fields:
-        return jsonify({'success': False, 'message': 'Aucun champ valide fourni'}), 400
+        return jsonify({'success': False, 'message': 'No valid fields provided'}), 400
 
     params.append(patient_id)
     rows = execute_query(

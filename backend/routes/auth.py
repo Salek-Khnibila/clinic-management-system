@@ -6,6 +6,7 @@ from flask_jwt_extended import (
 import bcrypt
 from db import execute_query
 from security_utils import log_security_event, rate_limit, validate_input, get_client_ip, detect_brute_force, log_request_response
+from validators import validate_email, validate_password, validate_user_creation, sanitize_text
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -77,27 +78,23 @@ def login():
 # ── POST /api/auth/register  (inscription patient publique) ───────────────────
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    """
-    Inscription publique — patients uniquement.
-    Les comptes médecin/secrétaire sont créés via des routes protégées.
-    """
+    """Inscription publique — patients uniquement."""
     try:
         data = request.get_json(silent=True) or {}
 
-        required = ['prenom', 'nom', 'email', 'password']
-        missing  = [f for f in required if not data.get(f)]
-        if missing:
-            return jsonify({'success': False, 'message': f"Missing fields: {', '.join(missing)}"}), 400
+        # 🔒 Validation stricte des entrées
+        errors = validate_user_creation(data, 'patient')
+        if errors:
+            return jsonify({'success': False, 'message': errors[0], 'errors': errors}), 400
 
         # 🔒 Seuls les patients peuvent s'inscrire publiquement
         role = data.get('role', 'patient')
         if role != 'patient':
             return jsonify({'success': False, 'message': 'Public registration is for patients only.'}), 403
 
-        existing = execute_query(
-            "SELECT id FROM users WHERE email = %s",
-            (data['email'].strip().lower(),), fetch_one=True
-        )
+        email = data['email'].strip().lower()
+
+        existing = execute_query("SELECT id FROM users WHERE email = %s", (email,), fetch_one=True)
         if existing:
             return jsonify({'success': False, 'message': 'This email address is already in use.'}), 409
 
@@ -107,9 +104,9 @@ def register():
             INSERT INTO users (prenom, nom, email, password, role, telephone, groupe_sanguin)
             VALUES (%s, %s, %s, %s, 'patient', %s, %s)
         """, (
-            data['prenom'].strip(),
-            data['nom'].strip(),
-            data['email'].strip().lower(),
+            sanitize_text(data['prenom'], 100),
+            sanitize_text(data['nom'], 100),
+            email,
             hashed,
             data.get('telephone', ''),
             data.get('groupe_sanguin'),
@@ -127,44 +124,29 @@ def register():
 @auth_bp.route('/create-user', methods=['POST'])
 @jwt_required()
 def create_user():
-    """
-    Création de comptes protégée :
-    - Admin     → peut créer secrétaire et médecin
-    - Secrétaire → peut créer médecin uniquement
-    """
+    """Admin → secrétaire/médecin | Secrétaire → médecin uniquement."""
     try:
-        claims       = get_jwt()
-        caller_role  = claims.get('role', '')
+        claims      = get_jwt()
+        caller_role = claims.get('role', '')
 
-        # 🔒 Seuls admin et secrétaire peuvent accéder à cette route
         if caller_role not in ('admin', 'secretaire'):
             return jsonify({'success': False, 'message': 'Access denied'}), 403
 
-        data = request.get_json(silent=True) or {}
+        data        = request.get_json(silent=True) or {}
+        target_role = data.get('role', '')
 
-        required = ['prenom', 'nom', 'email', 'password', 'role']
-        missing  = [f for f in required if not data.get(f)]
-        if missing:
-            return jsonify({'success': False, 'message': f"Missing fields: {', '.join(missing)}"}), 400
+        if caller_role == 'admin' and target_role not in ('secretaire', 'medecin'):
+            return jsonify({'success': False, 'message': 'Admin can only create secretaire or medecin accounts.'}), 403
+        if caller_role == 'secretaire' and target_role != 'medecin':
+            return jsonify({'success': False, 'message': 'Secretaire can only create medecin accounts.'}), 403
 
-        target_role = data['role']
+        # 🔒 Validation stricte
+        errors = validate_user_creation(data, target_role)
+        if errors:
+            return jsonify({'success': False, 'message': errors[0], 'errors': errors}), 400
 
-        # 🔒 Permissions selon le rôle de celui qui crée
-        if caller_role == 'admin':
-            # Admin peut créer secrétaire et médecin
-            if target_role not in ('secretaire', 'medecin'):
-                return jsonify({'success': False, 'message': 'Admin can only create secretaire or medecin accounts.'}), 403
-
-        elif caller_role == 'secretaire':
-            # Secrétaire peut créer médecin uniquement
-            if target_role != 'medecin':
-                return jsonify({'success': False, 'message': 'Secretaire can only create medecin accounts.'}), 403
-
-        # 🔒 Vérification email unique
-        existing = execute_query(
-            "SELECT id FROM users WHERE email = %s",
-            (data['email'].strip().lower(),), fetch_one=True
-        )
+        email = data['email'].strip().lower()
+        existing = execute_query("SELECT id FROM users WHERE email = %s", (email,), fetch_one=True)
         if existing:
             return jsonify({'success': False, 'message': 'This email address is already in use.'}), 409
 
@@ -174,14 +156,12 @@ def create_user():
             INSERT INTO users (prenom, nom, email, password, role, telephone, specialite, ville, tarif, experience, dispo)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
-            data['prenom'].strip(),
-            data['nom'].strip(),
-            data['email'].strip().lower(),
-            hashed,
-            target_role,
+            sanitize_text(data['prenom'], 100),
+            sanitize_text(data['nom'], 100),
+            email, hashed, target_role,
             data.get('telephone', ''),
-            data.get('specialite') if target_role == 'medecin' else None,
-            data.get('ville')      if target_role == 'medecin' else None,
+            sanitize_text(data.get('specialite', ''), 100) if target_role == 'medecin' else None,
+            sanitize_text(data.get('ville', ''), 100)      if target_role == 'medecin' else None,
             data.get('tarif')      if target_role == 'medecin' else None,
             data.get('experience') if target_role == 'medecin' else None,
             data.get('dispo', 'Disponible') if target_role == 'medecin' else None,
@@ -191,7 +171,7 @@ def create_user():
             log_security_event('USER_CREATED', details={
                 'created_by_role': caller_role,
                 'new_user_role':   target_role,
-                'new_user_email':  data['email'],
+                'new_user_email':  email,
             })
             return jsonify({'success': True, 'message': f'Account {target_role} created successfully.'}), 201
         return jsonify({'success': False, 'message': 'Error during creation'}), 500
@@ -224,3 +204,47 @@ def forgot_password():
 @auth_bp.route('/reset-password', methods=['POST'])
 def reset_password():
     return jsonify({'success': True, 'message': 'Password reset.'}), 200
+
+
+# ── PUT /api/auth/change-password  (utilisateur change son propre mot de passe) ──
+@auth_bp.route('/change-password', methods=['PUT'])
+@jwt_required()
+def change_password():
+    """
+    Permet à n'importe quel utilisateur connecté de changer son propre mot de passe.
+    Requiert l'ancien mot de passe pour confirmer l'identité.
+    """
+    try:
+        user_id = int(get_jwt_identity())
+        data    = request.get_json(silent=True) or {}
+
+        old_password = data.get('old_password', '')
+        new_password = data.get('new_password', '')
+
+        if not old_password or not new_password:
+            return jsonify({'success': False, 'message': 'Old and new passwords are required'}), 400
+
+        if len(new_password) < 8:
+            return jsonify({'success': False, 'message': 'New password must be at least 8 characters'}), 400
+
+        # 🔒 Vérifier l'ancien mot de passe
+        user = execute_query("SELECT * FROM users WHERE id = %s", (user_id,), fetch_one=True)
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+
+        if not bcrypt.checkpw(old_password.encode(), user['password'].encode()):
+            log_security_event('PASSWORD_CHANGE_FAILED', user_id=user_id, details={'reason': 'wrong old password'})
+            return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
+
+        # 🔒 Empêcher la réutilisation du même mot de passe
+        if bcrypt.checkpw(new_password.encode(), user['password'].encode()):
+            return jsonify({'success': False, 'message': 'New password must be different from current password'}), 400
+
+        hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
+        execute_query("UPDATE users SET password = %s WHERE id = %s", (hashed, user_id))
+
+        log_security_event('PASSWORD_CHANGED', user_id=user_id)
+        return jsonify({'success': True, 'message': 'Password changed successfully'})
+
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500

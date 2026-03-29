@@ -48,15 +48,15 @@ def create_app():
     # ── Global error handlers ─────────────────────────────────────────────────
     @app.errorhandler(404)
     def not_found(e):
-        return jsonify({"success": False, "message": "Ressource introuvable"}), 404
+        return jsonify({"success": False, "message": "Resource not found"}), 404
 
     @app.errorhandler(405)
     def method_not_allowed(e):
-        return jsonify({"success": False, "message": "Méthode non autorisée"}), 405
+        return jsonify({"success": False, "message": "Method not allowed"}), 405
 
     @app.errorhandler(500)
     def internal_error(e):
-        return jsonify({"success": False, "message": "Erreur interne du serveur"}), 500
+        return jsonify({"success": False, "message": "Internal server error"}), 500
 
     # ── Health check ──────────────────────────────────────────────────────────
     @app.route('/api/health')
