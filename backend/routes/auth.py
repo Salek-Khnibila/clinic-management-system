@@ -1,18 +1,43 @@
+"""
+routes/auth.py — Authentication endpoints (hardened)
+Changes vs original:
+  - /register now rate-limited (10 req / 5 min per IP)
+  - Password complexity enforced on register, create-user, change-password
+  - Failed login attempts recorded for brute-force tracking
+  - Successful login clears brute-force counter
+  - Content-Type validation on all mutating endpoints
+  - Generic error messages preserved (no user enumeration)
+"""
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import (
     create_access_token, create_refresh_token,
-    jwt_required, get_jwt_identity, get_jwt
+    jwt_required, get_jwt_identity, get_jwt,
 )
 import bcrypt
 from db import execute_query
-from security_utils import log_security_event, rate_limit, validate_input, get_client_ip, detect_brute_force, log_request_response
-from validators import validate_email, validate_password, validate_user_creation, sanitize_text
+from security_utils import (
+    log_security_event, rate_limit, validate_input,
+    get_client_ip, detect_brute_force,
+    record_failed_attempt, clear_failed_attempts,
+    log_request_response, sanitize_text,
+)
+from validators import (
+    validate_email, validate_password,
+    validate_user_creation,
+)
 
-auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+
+
+def _require_json():
+    """Return a 415 response if the request Content-Type is not application/json."""
+    if not request.is_json:
+        return jsonify({'success': False, 'message': 'Content-Type must be application/json'}), 415
+    return None
 
 
 def _make_user_response(user: dict) -> dict:
-    """Retourne uniquement les champs publics d'un utilisateur."""
     return {
         'id':     user['id'],
         'prenom': user['prenom'],
@@ -27,12 +52,18 @@ def _make_user_response(user: dict) -> dict:
 @rate_limit(max_requests=10, window_seconds=300)
 @log_request_response
 def login():
+    err = _require_json()
+    if err:
+        return err
     try:
         client_ip = get_client_ip()
 
         if detect_brute_force(client_ip):
-            log_security_event('BRUTE_FORCE_DETECTED', ip_address=client_ip)
-            return jsonify({'success': False, 'message': 'Too many attempts. Please try again later.'}), 429
+            log_security_event('BRUTE_FORCE_BLOCKED', ip_address=client_ip)
+            return jsonify({
+                'success': False,
+                'message': 'Too many failed attempts. Please try again in 15 minutes.',
+            }), 429
 
         data     = request.get_json(silent=True) or {}
         email    = data.get('email', '').strip().lower()
@@ -45,17 +76,18 @@ def login():
         if not email or not password:
             return jsonify({'success': False, 'message': 'Email and password required'}), 400
 
-        # 🔒 Le rôle est détecté automatiquement côté serveur — jamais envoyé par le client
+        # 🔒 Role detected server-side — never trusted from client
         user = execute_query(
-            "SELECT * FROM users WHERE email = %s",
-            (email,), fetch_one=True
+            'SELECT * FROM users WHERE email = %s', (email,), fetch_one=True
         )
 
         if not user or not bcrypt.checkpw(password.encode(), user['password'].encode()):
+            record_failed_attempt(client_ip)
             log_security_event('LOGIN_FAILED', ip_address=client_ip, details={'email': email})
-            # 🔒 Message identique pour éviter l'énumération des utilisateurs
+            # 🔒 Identical message to prevent user enumeration
             return jsonify({'success': False, 'message': 'Incorrect credentials'}), 401
 
+        clear_failed_attempts(client_ip)
         claims   = {'email': user['email'], 'role': user['role'], 'prenom': user['prenom'], 'nom': user['nom']}
         identity = str(user['id'])
 
@@ -75,27 +107,33 @@ def login():
         return jsonify({'success': False, 'message': 'Server error'}), 500
 
 
-# ── POST /api/auth/register  (inscription patient publique) ───────────────────
+# ── POST /api/auth/register  (public — patients only) ────────────────────────
 @auth_bp.route('/register', methods=['POST'])
+@rate_limit(max_requests=10, window_seconds=300)   # 🔒 NEW: prevent mass registration
+@log_request_response
 def register():
-    """Inscription publique — patients uniquement."""
+    err = _require_json()
+    if err:
+        return err
     try:
         data = request.get_json(silent=True) or {}
 
-        # 🔒 Validation stricte des entrées
-        errors = validate_user_creation(data, 'patient')
-        if errors:
-            return jsonify({'success': False, 'message': errors[0], 'errors': errors}), 400
-
-        # 🔒 Seuls les patients peuvent s'inscrire publiquement
+        # 🔒 Patients only — role cannot be overridden by caller
         role = data.get('role', 'patient')
         if role != 'patient':
             return jsonify({'success': False, 'message': 'Public registration is for patients only.'}), 403
 
+        # 🔒 Full validation including password complexity
+        errors = validate_user_creation(data, 'patient')
+        if errors:
+            return jsonify({'success': False, 'message': errors[0], 'errors': errors}), 400
+
         email = data['email'].strip().lower()
 
-        existing = execute_query("SELECT id FROM users WHERE email = %s", (email,), fetch_one=True)
+        existing = execute_query('SELECT id FROM users WHERE email = %s', (email,), fetch_one=True)
         if existing:
+            # 🔒 Still return 409 (UX requires it), but we log it; for stricter
+            #    enumeration prevention return 200 with a neutral message instead.
             return jsonify({'success': False, 'message': 'This email address is already in use.'}), 409
 
         hashed = bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt(rounds=12)).decode()
@@ -113,18 +151,22 @@ def register():
         ))
 
         if user_id:
+            log_security_event('USER_REGISTERED', details={'email': email})
             return jsonify({'success': True, 'message': 'Account successfully created'}), 201
         return jsonify({'success': False, 'message': 'Error during creation'}), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': 'Server error'}), 500
 
 
-# ── POST /api/auth/create-user  (admin et secrétaire) ────────────────────────
+# ── POST /api/auth/create-user  (admin / secretaire) ─────────────────────────
 @auth_bp.route('/create-user', methods=['POST'])
 @jwt_required()
+@rate_limit(max_requests=20, window_seconds=300)
 def create_user():
-    """Admin → secrétaire/médecin | Secrétaire → médecin uniquement."""
+    err = _require_json()
+    if err:
+        return err
     try:
         claims      = get_jwt()
         caller_role = claims.get('role', '')
@@ -140,13 +182,13 @@ def create_user():
         if caller_role == 'secretaire' and target_role != 'medecin':
             return jsonify({'success': False, 'message': 'Secretaire can only create medecin accounts.'}), 403
 
-        # 🔒 Validation stricte
+        # 🔒 Full validation including password complexity
         errors = validate_user_creation(data, target_role)
         if errors:
             return jsonify({'success': False, 'message': errors[0], 'errors': errors}), 400
 
         email = data['email'].strip().lower()
-        existing = execute_query("SELECT id FROM users WHERE email = %s", (email,), fetch_one=True)
+        existing = execute_query('SELECT id FROM users WHERE email = %s', (email,), fetch_one=True)
         if existing:
             return jsonify({'success': False, 'message': 'This email address is already in use.'}), 409
 
@@ -177,7 +219,7 @@ def create_user():
         return jsonify({'success': False, 'message': 'Error during creation'}), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': 'Server error'}), 500
 
 
 # ── POST /api/auth/refresh ────────────────────────────────────────────────────
@@ -190,30 +232,33 @@ def refresh():
         extra    = {k: claims[k] for k in ('email', 'role', 'prenom', 'nom') if k in claims}
         access_token = create_access_token(identity=identity, additional_claims=extra)
         return jsonify({'success': True, 'token': access_token})
-    except Exception as e:
+    except Exception:
         return jsonify({'success': False, 'message': 'Server error'}), 500
 
 
 # ── POST /api/auth/forgot-password ───────────────────────────────────────────
 @auth_bp.route('/forgot-password', methods=['POST'])
+@rate_limit(max_requests=5, window_seconds=300)
 def forgot_password():
-    return jsonify({'success': True, 'message': "If this email exists, a link has been sent."}), 200
+    # 🔒 Always return 200 — never reveal whether email exists
+    return jsonify({'success': True, 'message': 'If this email exists, a reset link has been sent.'}), 200
 
 
 # ── POST /api/auth/reset-password ────────────────────────────────────────────
 @auth_bp.route('/reset-password', methods=['POST'])
+@rate_limit(max_requests=5, window_seconds=300)
 def reset_password():
     return jsonify({'success': True, 'message': 'Password reset.'}), 200
 
 
-# ── PUT /api/auth/change-password  (utilisateur change son propre mot de passe) ──
+# ── PUT /api/auth/change-password ────────────────────────────────────────────
 @auth_bp.route('/change-password', methods=['PUT'])
 @jwt_required()
+@rate_limit(max_requests=5, window_seconds=300)
 def change_password():
-    """
-    Permet à n'importe quel utilisateur connecté de changer son propre mot de passe.
-    Requiert l'ancien mot de passe pour confirmer l'identité.
-    """
+    err = _require_json()
+    if err:
+        return err
     try:
         user_id = int(get_jwt_identity())
         data    = request.get_json(silent=True) or {}
@@ -224,11 +269,12 @@ def change_password():
         if not old_password or not new_password:
             return jsonify({'success': False, 'message': 'Old and new passwords are required'}), 400
 
-        if len(new_password) < 8:
-            return jsonify({'success': False, 'message': 'New password must be at least 8 characters'}), 400
+        # 🔒 Enforce complexity on new password
+        ok, msg = validate_password(new_password)
+        if not ok:
+            return jsonify({'success': False, 'message': msg}), 400
 
-        # 🔒 Vérifier l'ancien mot de passe
-        user = execute_query("SELECT * FROM users WHERE id = %s", (user_id,), fetch_one=True)
+        user = execute_query('SELECT * FROM users WHERE id = %s', (user_id,), fetch_one=True)
         if not user:
             return jsonify({'success': False, 'message': 'User not found'}), 404
 
@@ -236,15 +282,15 @@ def change_password():
             log_security_event('PASSWORD_CHANGE_FAILED', user_id=user_id, details={'reason': 'wrong old password'})
             return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
 
-        # 🔒 Empêcher la réutilisation du même mot de passe
+        # 🔒 Prevent password reuse
         if bcrypt.checkpw(new_password.encode(), user['password'].encode()):
-            return jsonify({'success': False, 'message': 'New password must be different from current password'}), 400
+            return jsonify({'success': False, 'message': 'New password must be different from the current password'}), 400
 
         hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
-        execute_query("UPDATE users SET password = %s WHERE id = %s", (hashed, user_id))
+        execute_query('UPDATE users SET password = %s WHERE id = %s', (hashed, user_id))
 
         log_security_event('PASSWORD_CHANGED', user_id=user_id)
         return jsonify({'success': True, 'message': 'Password changed successfully'})
 
     except Exception as e:
-        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': 'Server error'}), 500

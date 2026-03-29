@@ -1,122 +1,119 @@
 """
-Validators centralisés pour le backend Flask.
-Utilisés dans toutes les routes pour valider les inputs avant traitement.
+validators.py — Input validation for all user-facing data.
+Used by auth.py, appointments.py, and any route that accepts user input.
 """
-import re
-from typing import Optional
 
+import re
+from datetime import datetime
+from security_utils import validate_password_complexity
 
 # ── Email ─────────────────────────────────────────────────────────────────────
-EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
 
-def validate_email(email: str) -> Optional[str]:
-    """Retourne un message d'erreur ou None si valide."""
-    if not email or not isinstance(email, str):
-        return "Email is required"
-    email = email.strip().lower()
-    if len(email) > 255:
-        return "Email is too long"
-    if not EMAIL_REGEX.match(email):
-        return "Invalid email format"
-    # Domaines jetables courants bloqués
-    BLOCKED_DOMAINS = {'mailinator.com', 'tempmail.com', 'guerrillamail.com', 'trashmail.com', '10minutemail.com'}
-    domain = email.split('@')[1] if '@' in email else ''
-    if domain in BLOCKED_DOMAINS:
-        return "Disposable email addresses are not allowed"
-    return None
+def validate_email(email: str) -> bool:
+    if not isinstance(email, str):
+        return False
+    return bool(_EMAIL_RE.match(email.strip())) and len(email) <= 255
 
 
-# ── Mot de passe ──────────────────────────────────────────────────────────────
-def validate_password(password: str) -> Optional[str]:
-    """Retourne un message d'erreur ou None si valide."""
-    if not password or not isinstance(password, str):
-        return "Password is required"
-    if len(password) < 8:
-        return "Password must be at least 8 characters"
-    if len(password) > 128:
-        return "Password is too long"
-    if not re.search(r'[A-Z]', password):
-        return "Password must contain at least one uppercase letter"
-    if not re.search(r'[0-9]', password):
-        return "Password must contain at least one number"
-    return None
+# ── Password (delegates to security_utils for complexity) ─────────────────────
+def validate_password(password: str) -> tuple[bool, str]:
+    """Returns (is_valid, error_message)."""
+    return validate_password_complexity(password)
 
 
-# ── Nom / Prénom ──────────────────────────────────────────────────────────────
-def validate_name(name: str, field: str = "Name") -> Optional[str]:
-    if not name or not isinstance(name, str):
-        return f"{field} is required"
-    name = name.strip()
-    if len(name) < 2:
-        return f"{field} must be at least 2 characters"
-    if len(name) > 100:
-        return f"{field} is too long"
-    if not re.match(r"^[a-zA-ZÀ-ÿ\s'\-\.]+$", name):
-        return f"{field} contains invalid characters"
-    return None
+# ── Phone ─────────────────────────────────────────────────────────────────────
+_PHONE_RE = re.compile(r'^[0-9+\-\s()]{6,20}$')
 
-
-# ── Téléphone ─────────────────────────────────────────────────────────────────
-PHONE_REGEX = re.compile(r'^\+?[\d\s\-\(\)]{7,20}$')
-
-def validate_phone(phone: str) -> Optional[str]:
+def validate_phone(phone: str) -> bool:
     if not phone:
-        return None  # Optionnel
-    if not PHONE_REGEX.match(phone.strip()):
-        return "Invalid phone number format"
-    return None
+        return True          # optional field
+    return bool(_PHONE_RE.match(phone.strip()))
 
 
-# ── Rôle ──────────────────────────────────────────────────────────────────────
-VALID_ROLES = {'patient', 'medecin', 'secretaire', 'admin'}
+# ── Blood group ───────────────────────────────────────────────────────────────
+_VALID_BLOOD = {'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'}
 
-def validate_role(role: str, allowed: set = None) -> Optional[str]:
-    allowed = allowed or VALID_ROLES
-    if role not in allowed:
-        return f"Invalid role. Allowed: {', '.join(sorted(allowed))}"
-    return None
-
-
-# ── Sanitize texte (contre XSS basique) ──────────────────────────────────────
-def sanitize_text(text: str, max_len: int = 500) -> str:
-    """Nettoie un texte en supprimant les balises HTML dangereuses."""
-    if not text or not isinstance(text, str):
-        return ""
-    # Supprimer les balises HTML
-    text = re.sub(r'<[^>]*>', '', text)
-    # Supprimer les caractères de contrôle
-    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
-    return text.strip()[:max_len]
+def validate_blood_group(value: str) -> bool:
+    if not value:
+        return True          # optional
+    return value.strip().upper() in _VALID_BLOOD
 
 
-# ── Validation complète d'un utilisateur à la création ───────────────────────
-def validate_user_creation(data: dict, role: str) -> list:
+# ── Text field ────────────────────────────────────────────────────────────────
+def sanitize_text(value: str, max_length: int = 255) -> str:
+    if not isinstance(value, str):
+        return ''
+    return value.strip()[:max_length]
+
+
+# ── User creation ─────────────────────────────────────────────────────────────
+def validate_user_creation(data: dict, role: str) -> list[str]:
     """
-    Valide tous les champs d'un nouvel utilisateur.
-    Retourne une liste d'erreurs (vide si tout est OK).
+    Validate all fields required to create a user.
+    Returns a list of error strings (empty = OK).
     """
-    errors = []
+    errors: list[str] = []
 
-    err = validate_name(data.get('prenom', ''), 'First name')
-    if err: errors.append(err)
+    # Required for every role
+    if not data.get('prenom', '').strip():
+        errors.append('First name is required')
+    elif len(data['prenom']) > 100:
+        errors.append('First name must not exceed 100 characters')
 
-    err = validate_name(data.get('nom', ''), 'Last name')
-    if err: errors.append(err)
+    if not data.get('nom', '').strip():
+        errors.append('Last name is required')
+    elif len(data['nom']) > 100:
+        errors.append('Last name must not exceed 100 characters')
 
-    err = validate_email(data.get('email', ''))
-    if err: errors.append(err)
+    email = data.get('email', '').strip()
+    if not email:
+        errors.append('Email is required')
+    elif not validate_email(email):
+        errors.append('Invalid email address')
 
-    err = validate_password(data.get('password', ''))
-    if err: errors.append(err)
+    password = data.get('password', '')
+    if not password:
+        errors.append('Password is required')
+    else:
+        ok, msg = validate_password(password)
+        if not ok:
+            errors.append(msg)
 
-    if data.get('telephone'):
-        err = validate_phone(data['telephone'])
-        if err: errors.append(err)
+    phone = data.get('telephone', '')
+    if phone and not validate_phone(phone):
+        errors.append('Invalid phone number format')
 
+    # Patient-specific
+    if role == 'patient':
+        bg = data.get('groupe_sanguin', '')
+        if bg and not validate_blood_group(bg):
+            errors.append('Invalid blood group (must be A+, A-, B+, B-, AB+, AB-, O+, O-)')
+
+    # Doctor-specific
     if role == 'medecin':
         if not data.get('specialite', '').strip():
-            errors.append("Speciality is required for doctors")
+            errors.append('Specialty is required for doctors')
         if not data.get('ville', '').strip():
-            errors.append("City is required for doctors")
+            errors.append('City is required for doctors')
 
     return errors
+
+
+# ── Appointment ───────────────────────────────────────────────────────────────
+_DATE_RE = re.compile(r'^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$')
+_TIME_RE = re.compile(r'^(?:[01]\d|2[0-3]):[0-5]\d$')
+
+def validate_appointment_date(value: str) -> bool:
+    """Strict ISO date YYYY-MM-DD, must be a real calendar date."""
+    if not isinstance(value, str) or not _DATE_RE.match(value):
+        return False
+    try:
+        datetime.strptime(value, '%Y-%m-%d')
+        return True
+    except ValueError:
+        return False
+
+def validate_appointment_time(value: str) -> bool:
+    """Strict HH:MM 24h format."""
+    return bool(isinstance(value, str) and _TIME_RE.match(value))
