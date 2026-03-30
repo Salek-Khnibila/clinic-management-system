@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle, UserPlus } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 import { Card, SectionTitle } from "../../components/ui/Base.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
+import { useMobile } from "../../hooks/useMobile.js";
 
 const INITIAL_FORM = {
   prenom: "", nom: "", email: "", password: "",
@@ -11,6 +12,7 @@ const INITIAL_FORM = {
 
 export const SecretaireMedecins = () => {
   const { createUser } = useAuth();
+  const isMobile = useMobile();
   const [form, setForm]       = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
   const [err, setErr]         = useState("");
@@ -22,54 +24,51 @@ export const SecretaireMedecins = () => {
     setErr(""); setSuccess("");
     const required = ["prenom", "nom", "email", "password", "specialite", "ville"];
     const missing  = required.filter((f) => !form[f].trim());
-    if (missing.length) {
-      setErr(`Champs manquants : ${missing.join(", ")}`);
-      return;
-    }
+    if (missing.length) { setErr(`Champs manquants : ${missing.join(", ")}`); return; }
     setLoading(true);
     const result = await createUser({ ...form, role: "medecin" });
     setLoading(false);
-    if (result.success) {
-      setSuccess("Compte médecin créé avec succès !");
-      setForm(INITIAL_FORM);
-    } else {
-      setErr(result.message || "Erreur lors de la création.");
-    }
+    if (result.success) { setSuccess("Compte médecin créé avec succès !"); setForm(INITIAL_FORM); }
+    else setErr(result.message || "Erreur lors de la création.");
   };
 
-  const inputStyle = {
+  const inp = {
     width: "100%", padding: "10px 14px", borderRadius: 10,
     border: `1.5px solid ${C.border}`, fontSize: 14, color: C.navy,
     outline: "none", fontFamily: "inherit", boxSizing: "border-box",
   };
-
-  const labelStyle = {
+  const lbl = {
     display: "block", fontSize: 11, fontWeight: 700, color: C.gray500,
     textTransform: "uppercase", letterSpacing: 0.7, marginBottom: 6,
   };
+  const grid2 = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+    gap: 12, marginBottom: 12,
+  };
 
   return (
-    <div>
+    <div style={{ padding: isMobile ? "8px 0" : 0 }}>
       <SectionTitle sub="Créez des comptes pour les médecins de la clinique">
         Gestion des médecins
       </SectionTitle>
 
-      <Card style={{ padding: "24px 28px", maxWidth: 560 }}>
+      <Card style={{ padding: isMobile ? "18px 16px" : "24px 28px", width: "100%" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
           <UserPlus size={20} color={C.tealDk} />
           <span style={{ fontWeight: 800, fontSize: 16, color: C.navy }}>Nouveau médecin</span>
         </div>
 
-        {/* Informations personnelles */}
+        {/* Section personnelle */}
         <div style={{ fontSize: 12, fontWeight: 700, color: C.tealDk, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.7 }}>
           Informations personnelles
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-          {[["Prénom *", "prenom"], ["Nom *", "nom"]].map(([lbl, field]) => (
-            <div key={field}>
-              <label style={labelStyle}>{lbl}</label>
-              <input value={form[field]} onChange={set(field)} placeholder={lbl.replace(" *", "")} style={inputStyle}
+        <div style={grid2}>
+          {[["Prénom *", "prenom"], ["Nom *", "nom"]].map(([l, f]) => (
+            <div key={f}>
+              <label style={lbl}>{l}</label>
+              <input value={form[f]} onChange={set(f)} placeholder={l.replace(" *", "")} style={inp}
                 onFocus={(e) => (e.target.style.borderColor = C.teal)}
                 onBlur={(e) => (e.target.style.borderColor = C.border)} />
             </div>
@@ -77,48 +76,48 @@ export const SecretaireMedecins = () => {
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Email *</label>
-          <input type="email" value={form.email} onChange={set("email")} placeholder="dr.nom@clinique.com" style={inputStyle}
+          <label style={lbl}>Email *</label>
+          <input type="email" value={form.email} onChange={set("email")} placeholder="dr.nom@clinique.com" style={inp}
             onFocus={(e) => (e.target.style.borderColor = C.teal)}
             onBlur={(e) => (e.target.style.borderColor = C.border)} />
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Mot de passe *</label>
-          <input type="password" value={form.password} onChange={set("password")} placeholder="••••••••" style={inputStyle}
+          <label style={lbl}>Mot de passe *</label>
+          <input type="password" value={form.password} onChange={set("password")} placeholder="••••••••" style={inp}
             onFocus={(e) => (e.target.style.borderColor = C.teal)}
             onBlur={(e) => (e.target.style.borderColor = C.border)} />
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Téléphone</label>
-          <input value={form.telephone} onChange={set("telephone")} placeholder="06XXXXXXXX" style={inputStyle}
+          <label style={lbl}>Téléphone</label>
+          <input value={form.telephone} onChange={set("telephone")} placeholder="06XXXXXXXX" style={inp}
             onFocus={(e) => (e.target.style.borderColor = C.teal)}
             onBlur={(e) => (e.target.style.borderColor = C.border)} />
         </div>
 
-        {/* Informations médicales */}
+        {/* Section médicale */}
         <div style={{ height: 1, background: C.border, margin: "4px 0 16px" }} />
         <div style={{ fontSize: 12, fontWeight: 700, color: C.tealDk, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.7 }}>
           Informations médicales
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-          {[["Spécialité *", "specialite", "Cardiologie"], ["Ville *", "ville", "Casablanca"]].map(([lbl, field, ph]) => (
-            <div key={field}>
-              <label style={labelStyle}>{lbl}</label>
-              <input value={form[field]} onChange={set(field)} placeholder={ph} style={inputStyle}
+        <div style={grid2}>
+          {[["Spécialité *", "specialite", "Cardiologie"], ["Ville *", "ville", "Casablanca"]].map(([l, f, ph]) => (
+            <div key={f}>
+              <label style={lbl}>{l}</label>
+              <input value={form[f]} onChange={set(f)} placeholder={ph} style={inp}
                 onFocus={(e) => (e.target.style.borderColor = C.teal)}
                 onBlur={(e) => (e.target.style.borderColor = C.border)} />
             </div>
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 20 }}>
-          {[["Tarif", "tarif", "300 MAD"], ["Expérience", "experience", "5 ans"]].map(([lbl, field, ph]) => (
-            <div key={field}>
-              <label style={labelStyle}>{lbl}</label>
-              <input value={form[field]} onChange={set(field)} placeholder={ph} style={inputStyle}
+        <div style={{ ...grid2, marginBottom: 20 }}>
+          {[["Tarif", "tarif", "300 MAD"], ["Expérience", "experience", "5 ans"]].map(([l, f, ph]) => (
+            <div key={f}>
+              <label style={lbl}>{l}</label>
+              <input value={form[f]} onChange={set(f)} placeholder={ph} style={inp}
                 onFocus={(e) => (e.target.style.borderColor = C.teal)}
                 onBlur={(e) => (e.target.style.borderColor = C.border)} />
             </div>
@@ -143,8 +142,7 @@ export const SecretaireMedecins = () => {
             background: loading ? C.gray300 : C.gradBtn,
             color: "#fff", fontWeight: 800, fontSize: 15,
             border: "none", cursor: loading ? "not-allowed" : "pointer",
-            fontFamily: "inherit", display: "flex", alignItems: "center",
-            justifyContent: "center", gap: 8,
+            fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
           }}>
           <UserPlus size={16} />
           {loading ? "Création..." : "Créer le compte médecin"}

@@ -1,4 +1,4 @@
-import { Calendar, ClipboardList, Home, LayoutDashboard, MessageSquare, Settings, User, UserPlus, Users } from "lucide-react";
+import { Calendar, ClipboardList, Home, LayoutDashboard, MessageSquare, User, UserPlus, Users } from "lucide-react";
 
 export const NAV = {
   patient: [
@@ -19,8 +19,7 @@ export const NAV = {
     { id: "profil",     label: "Profil",     Icon: User },
   ],
   admin: [
-    { id: "home",       label: "Dashboard",   Icon: LayoutDashboard },
-    { id: "users",      label: "Utilisateurs", Icon: Users },
-    { id: "profil",     label: "Profil",      Icon: User },
+    { id: "home",  label: "Créer un compte",      Icon: UserPlus },
+    { id: "users", label: "Gérer les utilisateurs", Icon: Users },
   ],
 };

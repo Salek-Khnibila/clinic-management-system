@@ -1,191 +1,139 @@
-import { Calendar, CheckCircle, ClipboardList, Clock, MapPin, Stethoscope } from "lucide-react";
+import { useState } from "react";
+import { MapPin, Star, Stethoscope } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { SPEC_ICONS } from "../../constants/status.js";
-import { useMobile } from "../../hooks/useMobile.js";
-import { Card, Btn, Stars } from "../ui/Base.jsx";
+import { useAuth } from "../../contexts/AuthContext.jsx";
+import api from "../../services/api.js";
 
 export const DoctorCard = ({ med, onBook }) => {
-  const isMobile = useMobile();
-  const SI = SPEC_ICONS[med.specialite] || Stethoscope;
+  const { user } = useAuth();
+  const [hovered, setHovered]     = useState(0);
+  const [submitted, setSubmitted] = useState(false);
+  const [note, setNote]           = useState(med.note || 0);
+  const [avis, setAvis]           = useState(med.avis || 0);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewErr, setReviewErr] = useState("");
 
-  const cardStyle = {
-    padding: isMobile ? "12px 14px" : "18px 20px",
-  };
+  const isPatient = user?.role === "patient";
 
-  const avatarStyle = {
-    width: isMobile ? 48 : 62,
-    height: isMobile ? 48 : 62,
-    borderRadius: 12,
-    background: C.grad,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#fff",
-    fontWeight: 800,
-    fontSize: isMobile ? 15 : 18,
-  };
-
-  const nameStyle = {
-    fontWeight: 800,
-    fontSize: isMobile ? 13 : 15,
-    color: C.navy,
-    fontFamily: "Georgia,serif",
-  };
-
-  const specialtyStyle = {
-    fontSize: isMobile ? 11 : 12,
-    color: C.tealDk,
-    fontWeight: 700,
-  };
-
-  const tarifStyle = {
-    fontSize: isMobile ? 12 : 13,
-    fontWeight: 800,
-    color: C.tealDk,
-    background: C.tealLt,
-    padding: "3px 10px",
-    borderRadius: 6,
-  };
-
-  const detailStyle = {
-    fontSize: isMobile ? 11 : 12,
-    color: C.gray500,
+  const submitReview = async (stars) => {
+    if (!isPatient || submitted) return;
+    setReviewing(true); setReviewErr("");
+    try {
+      const res = await api.post(`/doctors/${med.id}/review`, { note: stars });
+      setNote(res.data.data.note);
+      setAvis(res.data.data.avis);
+      setSubmitted(true);
+    } catch (e) {
+      setReviewErr(e.response?.data?.message || "Erreur lors de l'évaluation.");
+      setTimeout(() => setReviewErr(""), 3000);
+    } finally {
+      setReviewing(false);
+    }
   };
 
   return (
-    <Card hover style={cardStyle}>
-      <div style={{ display: "flex", gap: isMobile ? 12 : 14, alignItems: "flex-start" }}>
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          <div style={avatarStyle}>
-            {med.prenom[0]}
-            {med.nom[0]}
-          </div>
-          <div
-            style={{
-              position: "absolute",
-              bottom: -4,
-              right: -4,
-              width: isMobile ? 18 : 20,
-              height: isMobile ? 18 : 20,
-              borderRadius: "50%",
-              background: med.dispo ? C.green : C.gray400,
-              border: "2px solid #fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {med.dispo ? (
-              <CheckCircle size={isMobile ? 10 : 11} color="#fff" strokeWidth={2.5} />
-            ) : (
-              <Clock size={isMobile ? 9 : 10} color="#fff" />
-            )}
-          </div>
+    <div style={{
+      background: C.white, borderRadius: 14, border: `1px solid ${C.border}`,
+      padding: "16px 18px", boxShadow: C.shadow,
+      transition: "box-shadow 0.15s",
+    }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 12 }}>
+        {/* Avatar médecin */}
+        <div style={{
+          width: 48, height: 48, borderRadius: 12, background: C.grad,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontWeight: 900, fontSize: 16, flexShrink: 0,
+        }}>
+          {med.prenom?.[0]}{med.nom?.[0]}
         </div>
+
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-            }}
-          >
-            <div>
-              <div style={nameStyle}>
-                Dr. {med.prenom} {med.nom}
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  marginTop: 3,
-                }}
-              >
-                <SI size={isMobile ? 11 : 12} color={C.tealDk} strokeWidth={2} />
-                <span style={specialtyStyle}>
-                  {med.specialite}
-                </span>
-              </div>
+          <div style={{ fontWeight: 800, fontSize: 15, color: C.navy, fontFamily: "Georgia,serif" }}>
+            Dr. {med.prenom} {med.nom}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+            <Stethoscope size={12} color={C.tealDk} />
+            <span style={{ fontSize: 12, color: C.tealDk, fontWeight: 600 }}>{med.specialite}</span>
+          </div>
+          {med.ville && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+              <MapPin size={11} color={C.gray400} />
+              <span style={{ fontSize: 11, color: C.gray400 }}>{med.ville}</span>
             </div>
-            <span style={tarifStyle}>
-              {med.tarif}
-            </span>
-          </div>
-          <div style={{ marginTop: isMobile ? 6 : 8 }}>
-            <Stars note={med.note} />
-          </div>
-          <div
-            style={{
-              display: "flex",
-              gap: isMobile ? 12 : 14,
-              marginTop: 7,
-              flexWrap: "wrap",
-            }}
-          >
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                ...detailStyle,
-              }}
-            >
-              <MapPin size={isMobile ? 10 : 11} />
-              {med.ville}
-            </span>
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                ...detailStyle,
-              }}
-            >
-              <ClipboardList size={isMobile ? 10 : 11} />
-              {med.avis} avis
-            </span>
-            <span
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                ...detailStyle,
-              }}
-            >
-              <Calendar size={isMobile ? 10 : 11} />
-              {med.exp}
-            </span>
-          </div>
-          <div
-            style={{
-              marginTop: isMobile ? 10 : 12,
-              display: "flex",
-              justifyContent: "flex-end",
-            }}
-          >
-            {med.dispo ? (
-              <Btn onClick={() => onBook(med)} icon={Calendar}>
-                Prendre RDV
-              </Btn>
-            ) : (
-              <span
-                style={{
-                  fontSize: isMobile ? 11 : 12,
-                  color: C.gray400,
-                  fontWeight: 600,
-                  padding: isMobile ? "6px 12px" : "8px 14px",
-                  background: C.gray100,
-                  borderRadius: 8,
-                }}
-              >
-                Indisponible
-              </span>
-            )}
-          </div>
+          )}
+        </div>
+
+        {/* Infos tarif/expérience */}
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          {med.tarif && <div style={{ fontSize: 13, fontWeight: 800, color: C.navy }}>{med.tarif}</div>}
+          {med.experience && <div style={{ fontSize: 11, color: C.gray400 }}>{med.experience}</div>}
         </div>
       </div>
-    </Card>
+
+      {/* Étoiles */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ display: "flex", gap: 2 }}>
+          {[1,2,3,4,5].map((star) => {
+            const filled  = star <= (hovered || Math.round(note));
+            const canRate = isPatient && !submitted && !reviewing;
+            return (
+              <button key={star}
+                onClick={() => canRate && submitReview(star)}
+                onMouseEnter={() => canRate && setHovered(star)}
+                onMouseLeave={() => canRate && setHovered(0)}
+                disabled={!canRate}
+                style={{
+                  background: "none", border: "none", padding: 2,
+                  cursor: canRate ? "pointer" : "default",
+                  transform: hovered === star && canRate ? "scale(1.2)" : "scale(1)",
+                  transition: "transform 0.1s",
+                }}>
+                <Star
+                  size={16}
+                  fill={filled ? "#F59E0B" : "none"}
+                  color={filled ? "#F59E0B" : C.gray300}
+                  strokeWidth={1.5}
+                />
+              </button>
+            );
+          })}
+        </div>
+        <span style={{ fontSize: 12, color: C.gray500 }}>
+          {note > 0 ? `${Number(note).toFixed(1)} (${avis} avis)` : "Pas encore évalué"}
+        </span>
+        {submitted && (
+          <span style={{ fontSize: 11, color: C.tealDk, fontWeight: 700 }}>✅ Merci !</span>
+        )}
+        {reviewErr && (
+          <span style={{ fontSize: 11, color: C.red, fontWeight: 600 }}>{reviewErr}</span>
+        )}
+        {isPatient && !submitted && !reviewing && (
+          <span style={{ fontSize: 10, color: C.gray400, marginLeft: "auto" }}>Cliquez pour évaluer</span>
+        )}
+      </div>
+
+      {/* Disponibilité + bouton */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        {med.dispo && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99,
+            background: C.tealLt, color: C.tealDk,
+          }}>
+            {med.dispo}
+          </span>
+        )}
+        {onBook && isPatient && (
+          <button onClick={() => onBook(med)}
+            style={{
+              padding: "8px 16px", borderRadius: 9, border: "none",
+              background: C.gradBtn, color: "#fff", fontWeight: 700,
+              fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+              marginLeft: "auto",
+            }}>
+            Prendre RDV
+          </button>
+        )}
+      </div>
+    </div>
   );
 };
-

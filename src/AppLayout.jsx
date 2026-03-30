@@ -16,6 +16,7 @@ import { SecretairePlanning } from "./pages/secretaire/SecretairePlanning.jsx";
 import { SecretaireMessagerie } from "./pages/secretaire/SecretaireMessagerie.jsx";
 import { SecretaireMedecins } from "./pages/secretaire/SecretaireMedecins.jsx";
 import { AdminDashboard } from "./pages/admin/AdminDashboard.jsx";
+import { AdminUsers } from "./pages/admin/AdminUsers.jsx";
 import { ProfilPage } from "./pages/ProfilPage.jsx";
 
 export const AppLayout = ({ onLogout }) => {
@@ -46,6 +47,7 @@ export const AppLayout = ({ onLogout }) => {
 
     // ── Admin ─────────────────────────────────────────────────────────────────
     if (user.role === "admin") {
+      if (page === "users") return <AdminUsers />;
       return <AdminDashboard />;
     }
 
@@ -93,34 +95,56 @@ export const AppLayout = ({ onLogout }) => {
           <Logo size={32} full={true} />
 
           <div style={{ display: "flex", alignItems: "center" }}>
-            {/* Navigation desktop */}
+            {/* Navigation desktop — icônes uniquement avec tooltip */}
             {!isMobile && (
-              <nav style={{ display: "flex", gap: "10px", alignItems: "center", minWidth: 0, overflow: "hidden" }}>
+              <nav style={{ display: "flex", gap: "4px", alignItems: "center" }}>
                 {navItems.map((item) => {
                   const active = page === item.id;
                   const hasUnread = item.id === "rdv" && unreadPatient > 0;
                   const Icon = item.Icon;
                   return (
-                    <button key={item.id} onClick={() => setPage(item.id)}
-                      style={{
-                        position: "relative", display: "flex", alignItems: "center", gap: 7,
-                        padding: "8px 15px", borderRadius: 8, border: "none",
-                        background: active ? C.tealLt : "transparent",
-                        color: active ? C.tealDk : C.gray500,
-                        fontWeight: active ? 700 : 500, fontSize: 14,
-                        cursor: "pointer", fontFamily: "inherit", transition: "all 0.15s",
-                        whiteSpace: "nowrap",
+                    <div key={item.id} style={{ position: "relative" }}
+                      onMouseEnter={(e) => {
+                        const tip = e.currentTarget.querySelector('.nav-tooltip');
+                        if (tip) tip.style.opacity = "1";
+                      }}
+                      onMouseLeave={(e) => {
+                        const tip = e.currentTarget.querySelector('.nav-tooltip');
+                        if (tip) tip.style.opacity = "0";
                       }}>
-                      <Icon size={15} strokeWidth={active ? 2.2 : 1.8} />
-                      {item.label}
-                      {hasUnread && (
-                        <span style={{
-                          position: "absolute", top: 4, right: 4,
-                          width: 8, height: 8, borderRadius: "50%",
-                          background: C.red, transform: "translate(50%, -50%)",
-                        }} />
-                      )}
-                    </button>
+                      <button onClick={() => setPage(item.id)}
+                        title={item.label}
+                        style={{
+                          position: "relative",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          width: 40, height: 40, borderRadius: 10, border: "none", margin: "0 4px",
+                          background: active ? C.tealLt : "transparent",
+                          color: active ? C.tealDk : C.gray500,
+                          cursor: "pointer", fontFamily: "inherit",
+                          transition: "all 0.15s",
+                        }}>
+                        <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+                        {hasUnread && (
+                          <span style={{
+                            position: "absolute", top: 6, right: 6,
+                            width: 7, height: 7, borderRadius: "50%",
+                            background: C.red,
+                          }} />
+                        )}
+                      </button>
+                      {/* Tooltip */}
+                      <div className="nav-tooltip" style={{
+                        position: "absolute", top: "calc(100% + 8px)", left: "50%",
+                        transform: "translateX(-50%)",
+                        background: C.navy, color: "#fff",
+                        fontSize: 11, fontWeight: 600, padding: "4px 10px",
+                        borderRadius: 6, whiteSpace: "nowrap",
+                        opacity: 0, transition: "opacity 0.15s",
+                        pointerEvents: "none", zIndex: 300,
+                      }}>
+                        {item.label}
+                      </div>
+                    </div>
                   );
                 })}
               </nav>
