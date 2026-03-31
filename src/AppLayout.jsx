@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { C } from "./constants/designTokens.js";
 import { NAV } from "./constants/nav.js";
 import { useAuth } from "./contexts/AuthContext.jsx";
@@ -117,7 +117,7 @@ export const AppLayout = ({ onLogout }) => {
                         style={{
                           position: "relative",
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          width: 40, height: 40, borderRadius: 10, border: "none", margin: "0 4px",
+                          width: 40, height: 40, borderRadius: 10, border: "none", marginRight: "5px",
                           background: active ? C.tealLt : "transparent",
                           color: active ? C.tealDk : C.gray500,
                           cursor: "pointer", fontFamily: "inherit",
@@ -155,12 +155,18 @@ export const AppLayout = ({ onLogout }) => {
               <div
                 onClick={() => setPage("profil")}
                 style={{
-                  width: 36, height: 36, borderRadius: "50%", background: C.grad,
+                  width: 36, height: 36, borderRadius: "50%",
+                  background: user.role === "admin"
+                    ? `linear-gradient(135deg, ${C.navy}, ${C.tealDk})`
+                    : C.grad,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   color: "#fff", fontWeight: 800, fontSize: 12,
                   cursor: "pointer", marginRight: isMobile ? "10px" : 0,
                 }}>
-                {user.prenom[0]}{user.nom[0]}
+                {user.role === "admin"
+                  ? <ShieldCheck size={17} strokeWidth={1.8} />
+                  : <>{user.prenom[0]}{user.nom[0]}</>
+                }
               </div>
               {!isMobile && (
                 <button onClick={onLogout}

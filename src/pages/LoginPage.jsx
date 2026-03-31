@@ -26,13 +26,11 @@ export const LoginPage = () => {
     setSuccess("");
 
     if (isLogin) {
-      // 🔒 Plus de rôle envoyé — détecté automatiquement par le serveur
       const result = await login(email, pass);
       if (!result.success) {
         setErr(result.message || "Identifiants incorrects.");
       }
     } else {
-      // Inscription patient uniquement
       const result = await register({ email, password: pass, nom, prenom });
       if (result.success) {
         setSuccess("Compte créé ! Connexion en cours...");
@@ -57,15 +55,18 @@ export const LoginPage = () => {
     fontFamily: "inherit",
     boxSizing: "border-box",
     transition: "border 0.2s",
+    // ✅ Grisé visuellement quand désactivé
+    opacity: loading ? 0.6 : 1,
+    cursor: loading ? "not-allowed" : "text",
   });
 
   const fields = [
     ...(isLogin ? [] : [
-      ["Prénom", "text", prenom, setPrenom, "Votre prénom", User],
-      ["Nom", "text", nom, setNom, "Votre nom", User],
+      ["Prénom", "text",     prenom, setPrenom, "Votre prénom", User],
+      ["Nom",    "text",     nom,    setNom,    "Votre nom",    User],
     ]),
-    ["Email", "email", email, setEmail, "votre@email.ma", User],
-    ["Mot de passe", "password", pass, setPass, "••••••••", Shield],
+    ["Email",         "email",    email, setEmail, "votre@email.ma", User],
+    ["Mot de passe",  "password", pass,  setPass,  "••••••••",       Shield],
   ];
 
   return (
@@ -163,11 +164,12 @@ export const LoginPage = () => {
                 <input
                   type={type}
                   value={val}
-                  onChange={(e) => setter(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && submit()}
+                  onChange={(e) => { if (!loading) setter(e.target.value); }} // ✅ bloque onChange
+                  onKeyDown={(e) => { if (!loading && e.key === "Enter") submit(); }} // ✅ bloque onKeyDown
                   placeholder={ph}
+                  disabled={loading} // ✅ désactive l'input nativement
                   style={inputStyle(isMobile)}
-                  onFocus={(e) => (e.target.style.borderColor = C.teal)}
+                  onFocus={(e) => { if (!loading) e.target.style.borderColor = C.teal; }}
                   onBlur={(e) => (e.target.style.borderColor = C.border)}
                 />
               </div>
@@ -240,15 +242,17 @@ export const LoginPage = () => {
           <div style={{ marginTop: 24, textAlign: "center", fontSize: 13, color: C.gray500 }}>
             {isLogin ? "Nouveau patient ?" : "Vous avez déjà un compte ?"}
             <button
-              onClick={() => { setIsLogin(!isLogin); setErr(""); setSuccess(""); }}
+              onClick={() => { if (!loading) { setIsLogin(!isLogin); setErr(""); setSuccess(""); } }} // ✅ bloque le toggle
+              disabled={loading}
               style={{
                 background: "none",
                 border: "none",
                 color: C.tealDk,
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: loading ? "not-allowed" : "pointer",
                 marginLeft: 8,
                 fontFamily: "inherit",
+                opacity: loading ? 0.5 : 1,
               }}
             >
               {isLogin ? "Créer un compte" : "Se connecter"}

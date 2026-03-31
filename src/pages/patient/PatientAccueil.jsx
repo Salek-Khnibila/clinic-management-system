@@ -1,33 +1,22 @@
+// src/pages/patient/PatientAccueil.jsx
+// Modification : ajout de selectedDoc + DoctorPanel
+// Toutes les autres lignes sont identiques à votre version actuelle.
+
 import { useState, useEffect } from "react";
 import {
-  Clock,
-  Inbox,
-  MapPin,
-  RefreshCw,
-  Search,
-  Stethoscope,
-  X,
-  AlertTriangle,
-  Calendar,
+  Clock, Inbox, MapPin, RefreshCw, Search,
+  Stethoscope, X, AlertTriangle, Calendar,
 } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import {
-  MONTHS,
-  SPECS,
-  VILLES,
-} from "../../constants/data.js";
+import { MONTHS, SPECS, VILLES } from "../../constants/data.js";
 import { SPEC_ICONS } from "../../constants/status.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import { useMobile } from "../../hooks/useMobile.js";
 import { BookingWizard } from "../../components/booking/BookingWizard.jsx";
 import { DoctorCard } from "../../components/doctor/DoctorCard.jsx";
+import { DoctorPanel } from "../../components/doctor/DoctorPanel.jsx";   // ← NOUVEAU
 import {
-  Btn,
-  Card,
-  Modal,
-  SectionTitle,
-  StatusBadge,
-  useToast,
+  Btn, Card, Modal, SectionTitle, StatusBadge, useToast,
 } from "../../components/ui/Base.jsx";
 
 export const PatientAccueil = ({ user }) => {
@@ -35,23 +24,22 @@ export const PatientAccueil = ({ user }) => {
   const isMobile = useMobile();
   const toast = useToast();
 
-  // ── TOUS les useState AVANT tout return conditionnel ──────────────────────
-  const [search, setSearch]             = useState("");
-  const [spec, setSpec]                 = useState("");
-  const [ville, setVille]               = useState("");
-  const [bookMed, setBookMed]           = useState(null);
+  const [search,       setSearch]       = useState("");
+  const [spec,         setSpec]         = useState("");
+  const [ville,        setVille]        = useState("");
+  const [bookMed,      setBookMed]      = useState(null);
+  const [selectedDoc,  setSelectedDoc]  = useState(null); // ← NOUVEAU
   const [cancelTarget, setCancelTarget] = useState(null);
-  const [cancelling, setCancelling]     = useState(false);
-  const [cancelErr, setCancelErr]       = useState("");
+  const [cancelling,   setCancelling]   = useState(false);
+  const [cancelErr,    setCancelErr]    = useState("");
 
   useEffect(() => {
     if (user?.id) refreshData();
   }, [user?.id, refreshData]);
 
-  // ── Garde rôle APRÈS tous les hooks ──────────────────────────────────────
-  if (!user || user.role !== 'patient') {
+  if (!user || user.role !== "patient") {
     return (
-      <div style={{ padding: 40, textAlign: 'center' }}>
+      <div style={{ padding: 40, textAlign: "center" }}>
         <h2>Access Denied</h2>
         <p>This page is reserved for patients.</p>
       </div>
@@ -63,7 +51,7 @@ export const PatientAccueil = ({ user }) => {
 
   const filtered = doctors.filter(
     (m) =>
-      (!spec || m.specialite === spec) &&
+      (!spec  || m.specialite === spec) &&
       (!ville || m.ville === ville) &&
       (!search ||
         `${m.prenom} ${m.nom} ${m.specialite}`
@@ -78,9 +66,8 @@ export const PatientAccueil = ({ user }) => {
         (r.statut === "confirme" || r.statut === "en_attente")
     )
     .sort((a, b) => {
-      const dateCompare = b.date.localeCompare(a.date);
-      if (dateCompare !== 0) return dateCompare;
-      return b.heure.localeCompare(a.heure);
+      const d = b.date.localeCompare(a.date);
+      return d !== 0 ? d : b.heure.localeCompare(a.heure);
     })
     .slice(0, 2);
 
@@ -98,11 +85,17 @@ export const PatientAccueil = ({ user }) => {
     }
   };
 
-  // Responsive styles
+  // ── Ouvre le BookingWizard depuis le panel ────────────────────────────────
+  // On ferme le panel puis on ouvre le wizard, pour éviter deux overlays.
+  const handleBookFromPanel = (med) => {
+    setSelectedDoc(null);
+    setBookMed(med);
+  };
+
   const containerStyle = { padding: isMobile ? "16px 12px" : "28px 24px" };
-  const headerStyle = { background: C.grad, borderRadius: 16, padding: isMobile ? "20px 16px" : "28px 24px", marginBottom: isMobile ? 16 : 22, position: "relative", overflow: "hidden" };
-  const titleStyle = { margin: "0 0 4px", fontSize: isMobile ? 18 : 22, fontWeight: 900, color: "#fff", fontFamily: "Georgia,serif" };
-  const rdvGridStyle = { display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : "row", gridTemplateColumns: isMobile ? "none" : "repeat(auto-fill,minmax(260px,1fr))", gap: isMobile ? 8 : 9 };
+  const headerStyle    = { background: C.grad, borderRadius: 16, padding: isMobile ? "20px 16px" : "28px 24px", marginBottom: isMobile ? 16 : 22, position: "relative", overflow: "hidden" };
+  const titleStyle     = { margin: "0 0 4px", fontSize: isMobile ? 18 : 22, fontWeight: 900, color: "#fff", fontFamily: "Georgia,serif" };
+  const rdvGridStyle   = { display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : "row", gridTemplateColumns: isMobile ? "none" : "repeat(auto-fill,minmax(260px,1fr))", gap: isMobile ? 8 : 9 };
 
   return (
     <div style={containerStyle}>
@@ -206,7 +199,6 @@ export const PatientAccueil = ({ user }) => {
                   </div>
                 </div>
                 <StatusBadge statut={rdv.statut} />
-                {/* Cancel button on upcoming cards */}
                 <button
                   onClick={() => { setCancelTarget(rdv); setCancelErr(""); }}
                   title="Cancel appointment"
@@ -223,12 +215,31 @@ export const PatientAccueil = ({ user }) => {
         Doctors
       </SectionTitle>
 
+      {/* ── Liste des médecins — clic sur la carte ouvre le panel ─────────── */}
       <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
         {filtered.map((m) => (
-          <DoctorCard key={m.id} med={m} onBook={setBookMed} />
+          <DoctorCard
+            key={m.id}
+            med={m}
+            onBook={setBookMed}
+            onSelect={setSelectedDoc}   // ← NOUVEAU : clic carte → panel
+          />
         ))}
       </div>
 
+      {/* ── Panel profil médecin ──────────────────────────────────────────── */}
+      {selectedDoc && (
+        <DoctorPanel
+          med={selectedDoc}
+          onClose={() => setSelectedDoc(null)}
+          onBook={handleBookFromPanel}
+          user={user}
+          rdvs={rdvs}
+          isMobile={isMobile}
+        />
+      )}
+
+      {/* ── BookingWizard ─────────────────────────────────────────────────── */}
       {bookMed && (
         <Modal title="Book an appointment" onClose={() => setBookMed(null)}>
           <BookingWizard
@@ -263,12 +274,8 @@ export const PatientAccueil = ({ user }) => {
             <div style={{ background: C.gray50, borderRadius: 10, padding: "12px 14px", marginBottom: 20 }}>
               <div style={{ fontWeight: 700, color: C.navy }}>Dr. {cancelTarget.medecin_prenom} {cancelTarget.medecin_nom}</div>
               <div style={{ fontSize: 12, color: C.gray500, marginTop: 4, display: "flex", gap: 12 }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Calendar size={11} /> {cancelTarget.date}
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <Clock size={11} /> {cancelTarget.heure}
-                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Calendar size={11} /> {cancelTarget.date}</span>
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Clock size={11} /> {cancelTarget.heure}</span>
               </div>
             </div>
             {cancelErr && (

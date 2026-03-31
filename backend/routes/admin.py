@@ -171,3 +171,67 @@ def change_user_password(user_id):
     })
 
     return jsonify({'success': True, 'message': 'Password updated successfully'})
+# Ajout à backend/routes/admin.py
+# Collez cette route à la fin du fichier, après change_user_password()
+
+# ── PUT /api/admin/profile/password ──────────────────────────────────────────
+@admin_bp.route('/profile/password', methods=['PUT'])
+@jwt_required()
+def change_own_password():
+    """
+    L'admin change son propre mot de passe.
+    Requiert l'ancien mot de passe pour confirmer l'identité.
+    🔒 Vérifie l'ancien mot de passe avant d'appliquer le changement.
+    🔒 Enforce la complexité du nouveau mot de passe.
+    🔒 Audit-log systématique.
+    """
+    err = _require_json()
+    if err:
+        return err
+
+    admin = _require_admin()
+    if not admin:
+        return jsonify({'success': False, 'message': 'Access denied'}), 403
+
+    data         = request.get_json(silent=True) or {}
+    old_password = data.get('old_password', '').strip()
+    new_password = data.get('new_password', '').strip()
+
+    if not old_password or not new_password:
+        return jsonify({
+            'success': False,
+            'message': 'old_password et new_password sont requis'
+        }), 400
+
+    # Récupère le hash actuel depuis la DB
+    row = execute_query(
+        'SELECT password FROM users WHERE id = %s', (admin['id'],), fetch_one=True
+    )
+    if not row:
+        return jsonify({'success': False, 'message': 'Compte introuvable'}), 404
+
+    # 🔒 Vérification de l'ancien mot de passe
+    if not bcrypt.checkpw(old_password.encode(), row['password'].encode()):
+        log_security_event('ADMIN_WRONG_OLD_PASSWORD', user_id=admin['id'], details={})
+        return jsonify({'success': False, 'message': 'Mot de passe actuel incorrect'}), 401
+
+    # 🔒 Empêche la réutilisation du même mot de passe
+    if bcrypt.checkpw(new_password.encode(), row['password'].encode()):
+        return jsonify({
+            'success': False,
+            'message': 'Le nouveau mot de passe doit être différent de l\'actuel'
+        }), 400
+
+    # 🔒 Complexité
+    ok, msg = validate_password(new_password)
+    if not ok:
+        return jsonify({'success': False, 'message': msg}), 400
+
+    hashed = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt(rounds=12)).decode()
+    execute_query('UPDATE users SET password = %s WHERE id = %s', (hashed, admin['id']))
+
+    log_security_event('ADMIN_CHANGED_OWN_PASSWORD', user_id=admin['id'], details={
+        'email': admin['email'],
+    })
+
+    return jsonify({'success': True, 'message': 'Mot de passe mis à jour avec succès'})
