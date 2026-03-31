@@ -60,20 +60,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   // 🔒 Création de compte protégée (admin/secrétaire)
-  const createUser = async (userData) => {
-    setLoading(true);
-    try {
-      const result = await authService.createUser(userData);
-      if (result.success) {
-        return { success: true, data: result.data };
-      }
-      return { success: false, message: result.message };
-    } catch (error) {
-      return { success: false, message: "Creation failed. Please try again." };
-    } finally {
-      setLoading(false);
+const createUser = async (userData) => {
+  // ❌ Plus de setLoading ici — chaque composant gère son propre état loading
+  try {
+    const result = await authService.createUser(userData);
+    if (result.success) {
+      return { success: true, data: result.data };
     }
-  };
+    return {
+      success: false,
+      message: result.message,
+      errors: result.errors || [],
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Creation failed. Please try again.",
+      errors: [],
+    };
+  }
+};
 
   return (
     <AuthCtx.Provider value={{

@@ -27,13 +27,28 @@ import {
   Modal,
   SectionTitle,
   StatusBadge,
+  useToast,
 } from "../../components/ui/Base.jsx";
 
 export const PatientAccueil = ({ user }) => {
   const { rdvs, addRdv, annulerRdv, messages, doctors, refreshData } = useApp();
   const isMobile = useMobile();
+  const toast = useToast();
 
-  // Role-based validation
+  // ── TOUS les useState AVANT tout return conditionnel ──────────────────────
+  const [search, setSearch]             = useState("");
+  const [spec, setSpec]                 = useState("");
+  const [ville, setVille]               = useState("");
+  const [bookMed, setBookMed]           = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [cancelling, setCancelling]     = useState(false);
+  const [cancelErr, setCancelErr]       = useState("");
+
+  useEffect(() => {
+    if (user?.id) refreshData();
+  }, [user?.id, refreshData]);
+
+  // ── Garde rôle APRÈS tous les hooks ──────────────────────────────────────
   if (!user || user.role !== 'patient') {
     return (
       <div style={{ padding: 40, textAlign: 'center' }}>
@@ -42,20 +57,6 @@ export const PatientAccueil = ({ user }) => {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (user?.id) refreshData();
-  }, [user?.id, refreshData]);
-
-  const [search, setSearch]   = useState("");
-  const [spec, setSpec]       = useState("");
-  const [ville, setVille]     = useState("");
-  const [bookMed, setBookMed] = useState(null);
-
-  // Cancel state
-  const [cancelTarget, setCancelTarget] = useState(null);
-  const [cancelling, setCancelling]     = useState(false);
-  const [cancelErr, setCancelErr]       = useState("");
 
   const myMsgs = messages.filter((m) => m.to_patient_id === user.id);
   const unread = myMsgs.filter((m) => !m.lu).length;
@@ -87,18 +88,20 @@ export const PatientAccueil = ({ user }) => {
     if (!cancelTarget) return;
     setCancelling(true); setCancelErr("");
     const result = await annulerRdv(cancelTarget.id);
+    setCancelling(false);
     if (result.success) {
+      toast.success("Rendez-vous annulé avec succès.");
       setCancelTarget(null);
     } else {
+      toast.error(result.message || "Failed to cancel appointment.");
       setCancelErr(result.message || "Failed to cancel appointment.");
     }
-    setCancelling(false);
   };
 
   // Responsive styles
   const containerStyle = { padding: isMobile ? "16px 12px" : "28px 24px" };
   const headerStyle = { background: C.grad, borderRadius: 16, padding: isMobile ? "20px 16px" : "28px 24px", marginBottom: isMobile ? 16 : 22, position: "relative", overflow: "hidden" };
-  const titleStyle  = { margin: "0 0 4px", fontSize: isMobile ? 18 : 22, fontWeight: 900, color: "#fff", fontFamily: "Georgia,serif" };
+  const titleStyle = { margin: "0 0 4px", fontSize: isMobile ? 18 : 22, fontWeight: 900, color: "#fff", fontFamily: "Georgia,serif" };
   const rdvGridStyle = { display: isMobile ? "flex" : "grid", flexDirection: isMobile ? "column" : "row", gridTemplateColumns: isMobile ? "none" : "repeat(auto-fill,minmax(260px,1fr))", gap: isMobile ? 8 : 9 };
 
   return (
@@ -230,7 +233,15 @@ export const PatientAccueil = ({ user }) => {
         <Modal title="Book an appointment" onClose={() => setBookMed(null)}>
           <BookingWizard
             med={bookMed}
-            onConfirm={(r) => { addRdv({ ...r, patient_id: user.id }); }}
+            onConfirm={async (r) => {
+              setBookMed(null);
+              const result = await addRdv({ ...r, patient_id: user.id });
+              if (result.success) {
+                toast.success("Rendez-vous pris avec succès !");
+              } else {
+                toast.error(result.message || "Impossible de prendre ce rendez-vous.");
+              }
+            }}
             onClose={() => setBookMed(null)}
           />
         </Modal>

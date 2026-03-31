@@ -94,10 +94,31 @@ def validate_user_creation(data: dict, role: str) -> list[str]:
     if role == 'medecin':
         if not data.get('specialite', '').strip():
             errors.append('Specialty is required for doctors')
+
         if not data.get('ville', '').strip():
             errors.append('City is required for doctors')
 
-    return errors
+        tarif = data.get('tarif', '')
+        if tarif == '' or tarif is None:
+            errors.append('Tarif is required for doctors')
+        else:
+            try:
+                t = float(str(tarif).replace(',', '.'))
+                if t < 0:
+                    errors.append('Tarif must be a positive number')
+            except (ValueError, TypeError):
+                errors.append('Tarif must be a valid number (ex: 300 or 150.50)')
+
+        experience = data.get('experience', '')
+        if experience == '' or experience is None:
+            errors.append('Experience is required for doctors')
+        else:
+            try:
+                e = int(float(str(experience)))
+                if e < 0 or e > 60:
+                    errors.append('Experience must be between 0 and 60 years')
+            except (ValueError, TypeError):
+                errors.append('Experience must be a valid integer (ex: 10)')
 
 
 # ── Appointment ───────────────────────────────────────────────────────────────

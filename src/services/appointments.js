@@ -8,7 +8,7 @@ export const appointmentService = {
       const response = await api.get('/appointments');
       return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   },
 
@@ -18,7 +18,7 @@ export const appointmentService = {
       const response = await api.get(`/appointments/user/${userId}`);
       return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   },
 
@@ -28,7 +28,7 @@ export const appointmentService = {
       const response = await api.post('/appointments', appointmentData);
       return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   },
 
@@ -38,7 +38,7 @@ export const appointmentService = {
       const response = await api.put(`/appointments/${id}`, appointmentData);
       return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   },
 
@@ -48,7 +48,7 @@ export const appointmentService = {
       await api.delete(`/appointments/${id}`);
       return { success: true };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   },
 
@@ -58,7 +58,7 @@ export const appointmentService = {
       const response = await api.get(`/appointments/slots/${doctorId}/${date}`);
       return { success: true, data: response.data };
     } catch (error) {
-      return { success: false, message: error.message };
+      return { success: false, message: error.response?.data?.message || error.message };
     }
   },
 };

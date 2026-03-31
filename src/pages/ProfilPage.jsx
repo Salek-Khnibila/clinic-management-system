@@ -90,7 +90,7 @@ export const ProfilPage = ({ onLogout }) => {
   };
 
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto" }}>
+    <div style={{margin: "0 auto" }}>
       <SectionTitle>Mon profil</SectionTitle>
 
       {/* Avatar + nom */}

@@ -4,16 +4,52 @@ import { C } from "../../constants/designTokens.js";
 import { STATUS } from "../../constants/status.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import { useMobile } from "../../hooks/useMobile.js";
-import { ArriveeBadge, Btn, Card, Modal, SectionTitle, StatusBadge } from "../../components/ui/Base.jsx";
+import { ArriveeBadge, Btn, Card, Modal, SectionTitle, StatusBadge, useToast } from "../../components/ui/Base.jsx";
 
 export const SecretairePlanning = () => {
   const { rdvs, doctors, validateRdv, annulerRdv, reporterRdv, setArrivee } = useApp();
   const isMobile = useMobile();
+  const toast = useToast();
   const [fMed, setFMed]   = useState("");
   const [fStat, setFStat] = useState("");
   const [fDate, setFDate] = useState("");
   const [repMod, setRepMod] = useState(null);
   const [newDate, setNewDate] = useState("");
+  const [loadingId, setLoadingId] = useState(null);
+
+  const handleValidate = async (id) => {
+    setLoadingId(id);
+    const result = await validateRdv(id);
+    setLoadingId(null);
+    if (result.success) {
+      toast.success("Rendez-vous confirmé.");
+    } else {
+      toast.error(result.message || "Impossible de confirmer ce rendez-vous.");
+    }
+  };
+
+  const handleAnnuler = async (id) => {
+    setLoadingId(id);
+    const result = await annulerRdv(id);
+    setLoadingId(null);
+    if (result.success) {
+      toast.success("Rendez-vous annulé.");
+    } else {
+      toast.error(result.message || "Impossible d'annuler ce rendez-vous.");
+    }
+  };
+
+  const handleReporter = async (id, date) => {
+    setLoadingId(id);
+    const result = await reporterRdv(id, date);
+    setLoadingId(null);
+    if (result.success) {
+      toast.success("Rendez-vous reporté.");
+      setRepMod(null);
+    } else {
+      toast.error(result.message || "Impossible de reporter ce rendez-vous.");
+    }
+  };
 
   const filtered = rdvs.filter(
     (r) =>
@@ -152,18 +188,18 @@ export const SecretairePlanning = () => {
             {/* Actions */}
             <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
               {rdv.statut === "en_attente" && (
-                <Btn variant="success" size="sm" icon={Clock} onClick={() => validateRdv(rdv.id)}>
-                  Valider
+                <Btn variant="success" size="sm" icon={Clock} disabled={loadingId === rdv.id} onClick={() => handleValidate(rdv.id)}>
+                  {loadingId === rdv.id ? "Valider..." : "Valider"}
                 </Btn>
               )}
               {rdv.statut !== "annule" && (
-                <Btn variant="ghost" size="sm" icon={RefreshCw} onClick={() => { setRepMod(rdv); setNewDate(""); }}>
+                <Btn variant="ghost" size="sm" icon={RefreshCw} disabled={loadingId === rdv.id} onClick={() => { setRepMod(rdv); setNewDate(""); }}>
                   Reporter
                 </Btn>
               )}
               {rdv.statut !== "annule" && (
-                <Btn variant="danger" size="sm" icon={XCircle} onClick={() => annulerRdv(rdv.id)}>
-                  Annuler
+                <Btn variant="danger" size="sm" icon={XCircle} disabled={loadingId === rdv.id} onClick={() => handleAnnuler(rdv.id)}>
+                  {loadingId === rdv.id ? "Annuler..." : "Annuler"}
                 </Btn>
               )}
             </div>
@@ -186,10 +222,10 @@ export const SecretairePlanning = () => {
               style={{ width: "100%", paddingLeft: 32, paddingRight: 12, paddingTop: 10, paddingBottom: 10, borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 14, color: C.navy, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "flex", gap: 9 }}>
-            <Btn onClick={() => { reporterRdv(repMod.id, newDate); setRepMod(null); }} disabled={!newDate} style={{ flex: 1, padding: "11px" }}>
-              Confirmer
+            <Btn onClick={() => handleReporter(repMod.id, newDate)} disabled={!newDate || loadingId === repMod.id} style={{ flex: 1, padding: "11px" }}>
+              {loadingId === repMod.id ? "Confirmer..." : "Confirmer"}
             </Btn>
-            <Btn variant="ghost" onClick={() => setRepMod(null)} style={{ flex: 1, padding: "11px" }}>
+            <Btn variant="ghost" onClick={() => setRepMod(null)} disabled={loadingId === repMod.id} style={{ flex: 1, padding: "11px" }}>
               Annuler
             </Btn>
           </div>

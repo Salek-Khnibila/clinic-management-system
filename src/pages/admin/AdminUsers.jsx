@@ -49,8 +49,8 @@ export const AdminUsers = () => {
 
   const changePassword = async () => {
     setPwdErr(""); setPwdSuccess("");
-    if (!newPwd || newPwd.length < 8) {
-      setPwdErr("Password must be at least 8 characters.");
+    if (!newPwd) {
+      setPwdErr("Password is required.");
       return;
     }
     setPwdLoading(true);
@@ -60,7 +60,8 @@ export const AdminUsers = () => {
       setNewPwd("");
       setTimeout(() => { setPwdModal(null); setPwdSuccess(""); }, 1500);
     } catch (e) {
-      setPwdErr(e.response?.data?.message || "Error updating password.");
+      const data = e.response?.data || {};
+      setPwdErr(data.message || "Error updating password.");
     } finally {
       setPwdLoading(false);
     }
@@ -216,8 +217,12 @@ export const AdminUsers = () => {
             />
 
             {pwdErr && (
-              <div style={{ background: C.redLt, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, fontWeight: 600, marginBottom: 14, display: "flex", gap: 7, alignItems: "center" }}>
-                <AlertTriangle size={13} /> {pwdErr}
+              <div style={{ background: C.redLt, color: C.red, borderRadius: 8, padding: "9px 12px", fontSize: 13, fontWeight: 600, marginBottom: 14 }}>
+                {pwdErr.split('\n').map((line, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: i < pwdErr.split('\n').length - 1 ? 4 : 0 }}>
+                    <AlertTriangle size={13} style={{ flexShrink: 0 }} /> {line}
+                  </div>
+                ))}
               </div>
             )}
             {pwdSuccess && (

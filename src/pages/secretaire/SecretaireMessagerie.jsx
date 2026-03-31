@@ -4,11 +4,12 @@ import { C } from "../../constants/designTokens.js";
 import { TEMPLATES } from "../../constants/data.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import { useMobile } from "../../hooks/useMobile.js";
-import { Avatar, Btn, Card, SectionTitle } from "../../components/ui/Base.jsx";
+import { Avatar, Btn, Card, SectionTitle, useToast } from "../../components/ui/Base.jsx";
 
 export const SecretaireMessagerie = () => {
   const { messages, sendMessage, patients } = useApp();
   const isMobile = useMobile();
+  const toast = useToast();
   const [selP, setSelP]     = useState(null);
   const [sujet, setSujet]   = useState("");
   const [corps, setCorps]   = useState("");
@@ -18,6 +19,7 @@ export const SecretaireMessagerie = () => {
   const [search, setSearch] = useState("");
   const [tmpl, setTmpl]     = useState("");
   const [showList, setShowList] = useState(true); // mobile: toggle liste/panel
+  const [sending, setSending] = useState(false);
 
   const pats    = patients.filter((p) => `${p.prenom} ${p.nom}`.toLowerCase().includes(search.toLowerCase()));
   const msgsOf  = (p) => messages.filter((m) => m.to_patient_id === p.id);
@@ -30,17 +32,34 @@ export const SecretaireMessagerie = () => {
   };
 
   const handleSend = async () => {
-    if (!selP || !sujet || !corps) return;
+    if (!selP) {
+      toast.warning("Sélectionnez d'abord un patient.");
+      return;
+    }
+    if (!sujet.trim()) {
+      toast.warning("Le sujet est requis.");
+      return;
+    }
+    if (!corps.trim()) {
+      toast.warning("Le message ne peut pas être vide.");
+      return;
+    }
+
+    setSending(true);
     setSendErr("");
     const result = await sendMessage({
       sender: 'secretaire', to_patient_id: selP.id,
       sujet: sujet.trim(), corps: corps.trim(),
       date: new Date().toISOString().split('T')[0],
     });
+    setSending(false);
+
     if (result.success) {
+      toast.success(`Message envoyé à ${selP.prenom} ${selP.nom}.`);
       setSent(true);
       setTimeout(() => { setSent(false); setCompose(false); setSujet(""); setCorps(""); setTmpl(""); }, 2200);
     } else {
+      toast.error(result.message || "Erreur lors de l'envoi.");
       setSendErr(result.message || "Erreur lors de l'envoi.");
     }
   };
@@ -104,7 +123,7 @@ export const SecretaireMessagerie = () => {
         )}
 
         {/* Panel messages mobile */}
-        {!showList && selP && <PanelMessages selP={selP} msgsOf={msgsOf} compose={compose} setCompose={setCompose} sujet={sujet} setSujet={setSujet} corps={corps} setCorps={setCorps} sent={sent} sendErr={sendErr} tmpl={tmpl} applyTmpl={applyTmpl} handleSend={handleSend} setTmpl={setTmpl} inp={inp} isMobile={isMobile} />}
+        {!showList && selP && <PanelMessages selP={selP} msgsOf={msgsOf} compose={compose} setCompose={setCompose} sujet={sujet} setSujet={setSujet} corps={corps} setCorps={setCorps} sent={sent} sendErr={sendErr} tmpl={tmpl} applyTmpl={applyTmpl} handleSend={handleSend} setTmpl={setTmpl} inp={inp} isMobile={isMobile} sending={sending} />}
       </div>
     );
   }
@@ -155,7 +174,7 @@ export const SecretaireMessagerie = () => {
               <div style={{ color: C.gray500, fontSize: 13 }}>Choisissez un patient pour voir ses messages ou en envoyer un nouveau.</div>
             </Card>
           ) : (
-            <PanelMessages selP={selP} msgsOf={msgsOf} compose={compose} setCompose={setCompose} sujet={sujet} setSujet={setSujet} corps={corps} setCorps={setCorps} sent={sent} sendErr={sendErr} tmpl={tmpl} applyTmpl={applyTmpl} handleSend={handleSend} setTmpl={setTmpl} inp={inp} isMobile={isMobile} />
+            <PanelMessages selP={selP} msgsOf={msgsOf} compose={compose} setCompose={setCompose} sujet={sujet} setSujet={setSujet} corps={corps} setCorps={setCorps} sent={sent} sendErr={sendErr} tmpl={tmpl} applyTmpl={applyTmpl} handleSend={handleSend} setTmpl={setTmpl} inp={inp} isMobile={isMobile} sending={sending} />
           )}
         </div>
       </div>
@@ -164,7 +183,7 @@ export const SecretaireMessagerie = () => {
 };
 
 // Composant panel messages partagé mobile/desktop
-const PanelMessages = ({ selP, msgsOf, compose, setCompose, sujet, setSujet, corps, setCorps, sent, sendErr, tmpl, applyTmpl, handleSend, setTmpl, inp, isMobile }) => {
+const PanelMessages = ({ selP, msgsOf, compose, setCompose, sujet, setSujet, corps, setCorps, sent, sendErr, tmpl, applyTmpl, handleSend, setTmpl, inp, isMobile, sending }) => {
   const msgs = msgsOf(selP);
 
   if (!compose) return (
@@ -266,9 +285,9 @@ const PanelMessages = ({ selP, msgsOf, compose, setCompose, sujet, setSujet, cor
       )}
 
       <div style={{ display: "flex", gap: 9, flexWrap: isMobile ? "wrap" : "nowrap" }}>
-        <Btn variant="ghost" onClick={() => setCompose(false)} style={{ flex: 1, padding: "11px" }}>Annuler</Btn>
-        <Btn variant="purple" icon={Send} onClick={handleSend} disabled={!sujet || !corps} style={{ flex: 2, padding: "11px" }}>
-          Envoyer le message
+        <Btn variant="ghost" onClick={() => setCompose(false)} disabled={sending} style={{ flex: 1, padding: "11px" }}>Annuler</Btn>
+        <Btn variant="purple" icon={Send} onClick={handleSend} disabled={!sujet || !corps || sending} style={{ flex: 2, padding: "11px" }}>
+          {sending ? "Envoi..." : "Envoyer le message"}
         </Btn>
       </div>
     </Card>

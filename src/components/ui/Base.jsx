@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, createContext, useContext } from "react";
 import { C } from "../../constants/designTokens.js";
 import { ARRIVEE, STATUS } from "../../constants/status.js";
-import { Star, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Star, X, ChevronLeft, ChevronRight, CheckCircle, XCircle, AlertTriangle, Info } from "lucide-react";
 import { DAYS, MONTHS } from "../../constants/data.js";
 
 export const Avatar = ({ name = "", color = C.teal, size = 40 }) => (
@@ -434,10 +434,10 @@ export const MiniCalendar = ({ selected, onSelect }) => {
                 color: sel
                   ? "#fff"
                   : past
-                  ? C.gray400
-                  : isT
-                  ? C.tealDk
-                  : C.gray900,
+                    ? C.gray400
+                    : isT
+                      ? C.tealDk
+                      : C.gray900,
                 transition: "all 0.1s",
               }}
             >
@@ -449,4 +449,120 @@ export const MiniCalendar = ({ selected, onSelect }) => {
     </Card>
   );
 };
+// ── Toast individuel ──────────────────────────────────────────────────────────
+const TOAST_STYLES = {
+  success: { bg: "#ECFDF5", border: "#10B981", color: "#059669", Icon: CheckCircle },
+  error:   { bg: "#FEF2F2", border: "#EF4444", color: "#DC2626", Icon: XCircle     },
+  warning: { bg: "#FFFBEB", border: "#F59E0B", color: "#D97706", Icon: AlertTriangle },
+  info:    { bg: "#F0FDFA", border: "#0D9488", color: "#0F766E", Icon: Info         },
+};
 
+const Toast = ({ id, type = "info", message, onClose }) => {
+  const s = TOAST_STYLES[type] || TOAST_STYLES.info;
+  useEffect(() => {
+    const t = setTimeout(() => onClose(id), 4000);
+    return () => clearTimeout(t);
+  }, [id, onClose]);
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "flex-start", gap: 10,
+      background: s.bg, border: `1px solid ${s.border}`,
+      borderLeft: `4px solid ${s.border}`,
+      borderRadius: 10, padding: "12px 14px",
+      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+      minWidth: 280, maxWidth: 380,
+      animation: "slideIn 0.2s ease",
+    }}>
+      <s.Icon size={16} color={s.color} style={{ flexShrink: 0, marginTop: 1 }} />
+      <span style={{ flex: 1, fontSize: 13, color: s.color, fontWeight: 600, lineHeight: 1.4 }}>
+        {message}
+      </span>
+      <button onClick={() => onClose(id)} style={{
+        border: "none", background: "none", cursor: "pointer",
+        color: s.color, padding: 0, lineHeight: 1, flexShrink: 0,
+      }}>
+        <X size={14} />
+      </button>
+    </div>
+  );
+};
+
+// ── Contexte Toast global ─────────────────────────────────────────────────────
+const ToastCtx = createContext(null);
+
+export const useToast = () => {
+  const ctx = useContext(ToastCtx);
+  if (!ctx) throw new Error("useToast must be used inside ToastProvider");
+  return ctx;
+};
+
+export const ToastProvider = ({ children }) => {
+  const [toasts, setToasts] = useState([]);
+
+  const remove = useCallback((id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const toast = useCallback((message, type = "info") => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+  }, []);
+
+  toast.success = (msg) => toast(msg, "success");
+  toast.error   = (msg) => toast(msg, "error");
+  toast.warning = (msg) => toast(msg, "warning");
+  toast.info    = (msg) => toast(msg, "info");
+
+  return (
+    <ToastCtx.Provider value={toast}>
+      {children}
+      <div style={{
+        position: "fixed", bottom: 24, right: 24,
+        display: "flex", flexDirection: "column", gap: 8,
+        zIndex: 9999,
+      }}>
+        <style>{`@keyframes slideIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}`}</style>
+        {toasts.map(t => (
+          <Toast key={t.id} {...t} onClose={remove} />
+        ))}
+      </div>
+    </ToastCtx.Provider>
+  );
+};
+// ── Indicateur de force du mot de passe ──────────────────────────────────────
+export const getPasswordStrength = (pwd) => {
+  let score = 0;
+  if (pwd.length >= 8)          score++;
+  if (pwd.length >= 12)        score++;
+  if (/[A-Z]/.test(pwd))       score++;
+  if (/[0-9]/.test(pwd))       score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  return score;
+};
+
+export const PasswordStrengthBar = ({ password }) => {
+  const strength = getPasswordStrength(password);
+  const label = ["", "Très faible", "Faible", "Moyen", "Fort", "Très fort"][strength];
+  const color = ["", C.red, C.red, C.amber, C.green, C.tealDk][strength];
+
+  if (!password) return null;
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ display: "flex", gap: 4, marginBottom: 4 }}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} style={{
+            flex: 1, height: 4, borderRadius: 99,
+            background: i <= strength ? color : C.border,
+            transition: "background 0.2s",
+          }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 11, color, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 11, color: C.gray400 }}>Min. 8 car., 1 majuscule, 1 chiffre</span>
+      </div>
+    </div>
+  );
+};

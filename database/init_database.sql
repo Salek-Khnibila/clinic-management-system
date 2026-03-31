@@ -170,7 +170,7 @@ DELIMITER ;
 -- ============================================================
 INSERT INTO users (prenom, nom, email, password, role)
 SELECT 'Super', 'Admin', 'admin@clinique.com',
-       '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+       '$2b$12$Iy2Vxx3rkhiTDh6ioRPYU.IMWe0pRf0spP46PffVwzrMwYjgSIpJO',
        'admin'
 WHERE NOT EXISTS (
     SELECT 1 FROM users WHERE role = 'admin'
@@ -181,7 +181,7 @@ WHERE NOT EXISTS (
 -- Décommentez si vous voulez des données de test
 -- ============================================================
 
-/*
+
 -- Médecins de démonstration
 -- Mot de passe pour tous : Demo@1234
 INSERT INTO users (prenom, nom, email, password, role, telephone, specialite, ville, tarif, experience, note, avis, dispo) VALUES
@@ -196,7 +196,7 @@ INSERT INTO users (prenom, nom, email, password, role, telephone) VALUES
 INSERT INTO users (prenom, nom, email, password, role, telephone, groupe_sanguin) VALUES
 ('Alice', 'Dupont', 'alice@email.com', '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'patient', '0612345681', 'AB+'),
 ('Bob',   'Martin', 'bob@email.com',   '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'patient', '0612345682', 'O-');
-*/
+
 
 -- ============================================================
 -- Vérification finale

@@ -37,8 +37,11 @@ export const authService = {
       const response = await api.post('/auth/create-user', userData);
       return { success: true, data: response.data };
     } catch (error) {
-      const message = error.response?.data?.message || 'Creation failed';
-      return { success: false, message };
+      const data = error.response?.data || {};
+      // Le backend renvoie { success, message, errors: [...] }
+      const errors = Array.isArray(data.errors) ? data.errors : [];
+      const message = data.message || 'Creation failed';
+      return { success: false, message, errors };
     }
   },
 

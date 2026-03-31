@@ -3,6 +3,8 @@ import { AppProvider } from "./contexts/AppContext.jsx";
 import { AppLayout } from "./AppLayout.jsx";
 import { LoginPage } from "./pages/LoginPage.jsx";
 
+import { ToastProvider } from "./components/ui/Base.jsx";
+
 const AppInner = () => {
   const { user, logout } = useAuth();
   if (!user) {
@@ -15,7 +17,9 @@ export default function App() {
   return (
     <AuthProvider>
       <AppProvider>
-        <AppInner />
+        <ToastProvider>
+          <AppInner />
+        </ToastProvider>
       </AppProvider>
     </AuthProvider>
   );

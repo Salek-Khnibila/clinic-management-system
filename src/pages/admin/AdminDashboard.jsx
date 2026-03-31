@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { AlertTriangle, CheckCircle, UserPlus, Users } from "lucide-react";
+import { AlertTriangle, CheckCircle, Eye, EyeOff, UserPlus, Users } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
-import { Card, SectionTitle } from "../../components/ui/Base.jsx";
+import { Card, PasswordStrengthBar, SectionTitle, useToast } from "../../components/ui/Base.jsx";
 import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useMobile } from "../../hooks/useMobile.js";
+import { SPECS, VILLES } from "../../constants/data.js";
 
 const INITIAL_FORM = {
   prenom: "", nom: "", email: "", password: "",
@@ -14,24 +15,43 @@ const INITIAL_FORM = {
 export const AdminDashboard = () => {
   const { createUser } = useAuth();
   const isMobile = useMobile();
+  const toast = useToast();
   const [form, setForm]       = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
-  const [err, setErr]         = useState("");
+  const [errors, setErrors]   = useState([]);
   const [success, setSuccess] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
 
   const set = (field) => (e) => setForm((p) => ({ ...p, [field]: e.target.value }));
 
   const submit = async () => {
-    setErr(""); setSuccess("");
+    setErrors([]); setSuccess("");
     const required = ["prenom", "nom", "email", "password"];
-    if (form.role === "medecin") required.push("specialite", "ville");
+    if (form.role === "medecin") required.push("specialite", "ville", "tarif", "experience");
     const missing = required.filter((f) => !form[f].trim());
-    if (missing.length) { setErr(`Champs manquants : ${missing.join(", ")}`); return; }
+    if (missing.length) {
+      setErrors([`Champs manquants : ${missing.join(", ")}`]);
+      return;
+    }
     setLoading(true);
     const result = await createUser(form);
     setLoading(false);
-    if (result.success) { setSuccess(`Compte ${form.role} créé avec succès !`); setForm(INITIAL_FORM); }
-    else setErr(result.message || "Erreur lors de la création.");
+    if (result.success) {
+      setSuccess(`Compte ${form.role} créé avec succès !`);
+      toast.success("Compte créé !");
+      setForm(INITIAL_FORM);
+      setTimeout(() => setSuccess(""), 4000);
+    } else {
+      // ✅ errors[] en priorité, sinon message seul (ex: email déjà utilisé)
+      if (result.errors && result.errors.length > 0) {
+        setErrors(result.errors);
+      } else if (result.message) {
+        setErrors([result.message]);
+      } else {
+        setErrors(["Erreur lors de la création."]);
+      }
+      toast.error("Échec de la création du compte.");
+    }
   };
 
   const inp = {
@@ -53,7 +73,6 @@ export const AdminDashboard = () => {
     <div style={{ padding: isMobile ? "8px 0" : 0 }}>
       <SectionTitle sub="Gérez les comptes de la clinique">Administration</SectionTitle>
 
-      {/* Banner */}
       <Card style={{ padding: isMobile ? "14px 16px" : "16px 20px", display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
         <div style={{ width: 44, height: 44, borderRadius: 12, background: C.tealLt, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <Users size={22} color={C.tealDk} />
@@ -64,14 +83,12 @@ export const AdminDashboard = () => {
         </div>
       </Card>
 
-      {/* Formulaire */}
       <Card style={{ padding: isMobile ? "18px 16px" : "24px 28px", width: "100%" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 22 }}>
           <UserPlus size={20} color={C.tealDk} />
           <span style={{ fontWeight: 800, fontSize: 16, color: C.navy }}>Créer un compte</span>
         </div>
 
-        {/* Sélection rôle */}
         <div style={{ marginBottom: 18 }}>
           <label style={lbl}>Type de compte</label>
           <div style={{ display: "flex", gap: 8 }}>
@@ -91,7 +108,6 @@ export const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Prénom + Nom */}
         <div style={grid2}>
           {[["Prénom", "prenom"], ["Nom", "nom"]].map(([l, f]) => (
             <div key={f}>
@@ -103,64 +119,133 @@ export const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* Email */}
         <div style={{ marginBottom: 12 }}>
           <label style={lbl}>Email</label>
-          <input type="email" value={form.email} onChange={set("email")} placeholder="email@clinique.com" style={inp}
+          <input type="email" value={form.email} onChange={set("email")}
+            placeholder="email@clinique.com" style={inp}
             onFocus={(e) => (e.target.style.borderColor = C.teal)}
             onBlur={(e) => (e.target.style.borderColor = C.border)} />
         </div>
 
-        {/* Mot de passe */}
+        {/* ── Mot de passe avec indicateur de force ── */}
         <div style={{ marginBottom: 12 }}>
           <label style={lbl}>Mot de passe</label>
-          <input type="password" value={form.password} onChange={set("password")} placeholder="••••••••" style={inp}
-            onFocus={(e) => (e.target.style.borderColor = C.teal)}
-            onBlur={(e) => (e.target.style.borderColor = C.border)} />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showPwd ? "text" : "password"}
+              value={form.password}
+              onChange={set("password")}
+              placeholder="••••••••"
+              style={{ ...inp, paddingRight: 40 }}
+              onFocus={(e) => (e.target.style.borderColor = C.teal)}
+              onBlur={(e) => (e.target.style.borderColor = C.border)}
+            />
+            <button
+              onClick={() => setShowPwd(!showPwd)}
+              tabIndex={-1}
+              style={{
+                position: "absolute", right: 12, top: "50%",
+                transform: "translateY(-50%)",
+                background: "none", border: "none",
+                cursor: "pointer", color: C.gray400, padding: 0,
+              }}
+            >
+              {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <PasswordStrengthBar password={form.password} />
         </div>
 
-        {/* Téléphone */}
         <div style={{ marginBottom: 12 }}>
           <label style={lbl}>Téléphone</label>
-          <input value={form.telephone} onChange={set("telephone")} placeholder="06XXXXXXXX" style={inp}
+          <input value={form.telephone} onChange={set("telephone")}
+            placeholder="06XXXXXXXX" style={inp}
             onFocus={(e) => (e.target.style.borderColor = C.teal)}
             onBlur={(e) => (e.target.style.borderColor = C.border)} />
         </div>
 
-        {/* Champs médecin */}
         {form.role === "medecin" && (
           <>
             <div style={{ height: 1, background: C.border, margin: "16px 0" }} />
             <div style={{ fontSize: 12, fontWeight: 700, color: C.tealDk, marginBottom: 12, textTransform: "uppercase", letterSpacing: 0.7 }}>
               Informations médicales
             </div>
+
             <div style={grid2}>
-              {[["Spécialité *", "specialite", "Cardiologie"], ["Ville *", "ville", "Casablanca"]].map(([l, f, ph]) => (
-                <div key={f}>
-                  <label style={lbl}>{l}</label>
-                  <input value={form[f]} onChange={set(f)} placeholder={ph} style={inp}
-                    onFocus={(e) => (e.target.style.borderColor = C.teal)}
-                    onBlur={(e) => (e.target.style.borderColor = C.border)} />
-                </div>
-              ))}
+              {/* Spécialité */}
+              <div>
+                <label style={lbl}>Spécialité *</label>
+                <select value={form.specialite} onChange={set("specialite")}
+                  style={{ ...inp, color: form.specialite ? C.navy : C.gray400 }}
+                  onFocus={(e) => (e.target.style.borderColor = C.teal)}
+                  onBlur={(e) => (e.target.style.borderColor = C.border)}>
+                  <option value="">-- Choisir --</option>
+                  {SPECS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {/* Ville */}
+              <div>
+                <label style={lbl}>Ville *</label>
+                <select value={form.ville} onChange={set("ville")}
+                  style={{ ...inp, color: form.ville ? C.navy : C.gray400 }}
+                  onFocus={(e) => (e.target.style.borderColor = C.teal)}
+                  onBlur={(e) => (e.target.style.borderColor = C.border)}>
+                  <option value="">-- Choisir --</option>
+                  {VILLES.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
             </div>
+
             <div style={grid2}>
-              {[["Tarif", "tarif", "300 MAD"], ["Expérience", "experience", "5 ans"]].map(([l, f, ph]) => (
-                <div key={f}>
-                  <label style={lbl}>{l}</label>
-                  <input value={form[f]} onChange={set(f)} placeholder={ph} style={inp}
+              {/* Tarif */}
+              <div>
+                <label style={lbl}>Tarif *</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="number" min="0" step="0.01"
+                    value={form.tarif}
+                    onChange={(e) => setForm((p) => ({ ...p, tarif: e.target.value }))}
+                    placeholder="300"
+                    style={{ ...inp, paddingRight: 52 }}
                     onFocus={(e) => (e.target.style.borderColor = C.teal)}
-                    onBlur={(e) => (e.target.style.borderColor = C.border)} />
+                    onBlur={(e) => (e.target.style.borderColor = C.border)}
+                  />
+                  <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 700, color: C.gray400, pointerEvents: "none" }}>
+                    MAD
+                  </span>
                 </div>
-              ))}
+              </div>
+
+              {/* Expérience */}
+              <div>
+                <label style={lbl}>Expérience *</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type="number" min="0" max="60" step="1"
+                    value={form.experience}
+                    onChange={(e) => setForm((p) => ({ ...p, experience: e.target.value }))}
+                    placeholder="10"
+                    style={{ ...inp, paddingRight: 44 }}
+                    onFocus={(e) => (e.target.style.borderColor = C.teal)}
+                    onBlur={(e) => (e.target.style.borderColor = C.border)}
+                  />
+                  <span style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 700, color: C.gray400, pointerEvents: "none" }}>
+                    ans
+                  </span>
+                </div>
+              </div>
             </div>
           </>
         )}
 
-        {/* Messages */}
-        {err && (
-          <div style={{ background: C.redLt, color: C.red, borderRadius: 9, padding: "10px 13px", fontSize: 13, fontWeight: 600, marginBottom: 14, display: "flex", gap: 7, alignItems: "center" }}>
-            <AlertTriangle size={14} /> {err}
+        {errors.length > 0 && (
+          <div style={{ background: C.redLt, color: C.red, borderRadius: 9, padding: "10px 13px", fontSize: 13, fontWeight: 600, marginBottom: 14 }}>
+            {errors.map((line, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: i < errors.length - 1 ? 5 : 0 }}>
+                <AlertTriangle size={14} style={{ flexShrink: 0 }} /> {line}
+              </div>
+            ))}
           </div>
         )}
         {success && (

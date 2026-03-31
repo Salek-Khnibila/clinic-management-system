@@ -30,6 +30,15 @@ from validators import (
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 
+def _normalize_experience(value):
+    """'10' → '10 ans', '10 ans' → '10 ans', None → None"""
+    if not value:
+        return None
+    v = str(value).strip()
+    if v and not v.lower().endswith('ans'):
+        v = v + ' ans'
+    return v
+
 def _require_json():
     """Return a 415 response if the request Content-Type is not application/json."""
     if not request.is_json:
@@ -134,7 +143,11 @@ def register():
         if existing:
             # 🔒 Still return 409 (UX requires it), but we log it; for stricter
             #    enumeration prevention return 200 with a neutral message instead.
-            return jsonify({'success': False, 'message': 'This email address is already in use.'}), 409
+            return jsonify({
+                'success': False, 
+                'message': 'This email address is already in use.',
+                'errors': ['This email address is already in use.']
+            }), 409
 
         hashed = bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt(rounds=12)).decode()
 
@@ -153,10 +166,19 @@ def register():
         if user_id:
             log_security_event('USER_REGISTERED', details={'email': email})
             return jsonify({'success': True, 'message': 'Account successfully created'}), 201
-        return jsonify({'success': False, 'message': 'Error during creation'}), 500
+        
+        return jsonify({
+            'success': False, 
+            'message': 'Error during creation',
+            'errors': ['Error during creation']
+        }), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'message': 'Server error'}), 500
+        return jsonify({
+            'success': False, 
+            'message': 'Server error',
+            'errors': [str(e)]
+        }), 500
 
 
 # ── POST /api/auth/create-user  (admin / secretaire) ─────────────────────────
@@ -182,17 +204,27 @@ def create_user():
         if caller_role == 'secretaire' and target_role != 'medecin':
             return jsonify({'success': False, 'message': 'Secretaire can only create medecin accounts.'}), 403
 
-        # 🔒 Full validation including password complexity
+        # 🔒 validate_user_creation gère toute la validation — pas besoin de validate_input ici
         errors = validate_user_creation(data, target_role)
         if errors:
             return jsonify({'success': False, 'message': errors[0], 'errors': errors}), 400
 
         email = data['email'].strip().lower()
+
+        # ── Vérification email déjà utilisé ──────────────────────────────────
         existing = execute_query('SELECT id FROM users WHERE email = %s', (email,), fetch_one=True)
         if existing:
-            return jsonify({'success': False, 'message': 'This email address is already in use.'}), 409
+            return jsonify({
+                'success': False,
+                'message': 'This email address is already in use.',
+                'errors':  ['This email address is already in use.'],  # ← ajout du tableau
+            }), 409
 
         hashed = bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt(rounds=12)).decode()
+
+        # Conversion des types numériques avant insertion
+        tarif_val = float(str(data['tarif']).replace(',', '.')) if data.get('tarif') else None
+        experience_val = int(float(str(data['experience']))) if data.get('experience') else None
 
         user_id = execute_query("""
             INSERT INTO users (prenom, nom, email, password, role, telephone, specialite, ville, tarif, experience, dispo)
@@ -204,8 +236,8 @@ def create_user():
             data.get('telephone', ''),
             sanitize_text(data.get('specialite', ''), 100) if target_role == 'medecin' else None,
             sanitize_text(data.get('ville', ''), 100)      if target_role == 'medecin' else None,
-            data.get('tarif')      if target_role == 'medecin' else None,
-            data.get('experience') if target_role == 'medecin' else None,
+            tarif_val      if target_role == 'medecin' else None,
+            experience_val if target_role == 'medecin' else None,
             data.get('dispo', 'Disponible') if target_role == 'medecin' else None,
         ))
 
@@ -216,10 +248,15 @@ def create_user():
                 'new_user_email':  email,
             })
             return jsonify({'success': True, 'message': f'Account {target_role} created successfully.'}), 201
-        return jsonify({'success': False, 'message': 'Error during creation'}), 500
+        return jsonify({'success': False, 'message': 'Error during creation', 'errors': ['Error during creation']}), 500
 
     except Exception as e:
-        return jsonify({'success': False, 'message': 'Server error'}), 500
+        log_security_event('CREATE_USER_ERROR', details={'error': str(e)})
+        return jsonify({
+            'success': False,
+            'message': 'Server error',
+            'errors':  [str(e)],   # ← en dev seulement, retirez en production
+        }), 500
 
 
 # ── POST /api/auth/refresh ────────────────────────────────────────────────────

@@ -58,10 +58,10 @@ def get_all():
 def get_user_appointments(user_id):
     current_id, role = _get_claims()
 
-    if role != 'secretaire' and current_id != user_id:
+    if role not in ('secretaire', 'medecin', 'patient', 'admin'):
         return jsonify({'success': False, 'message': 'Access denied'}), 403
 
-    if role == 'secretaire':
+    if role in ('secretaire', 'admin'):
         rdvs = execute_query(SELECT_FULL + ' ORDER BY a.date DESC, a.heure DESC')
     elif role == 'patient':
         rdvs = execute_query(
@@ -73,8 +73,6 @@ def get_user_appointments(user_id):
             SELECT_FULL + ' WHERE a.medecin_id = %s ORDER BY a.date DESC, a.heure DESC',
             (current_id,)
         )
-    else:
-        return jsonify({'success': False, 'message': 'Unknown role'}), 403
 
     return jsonify({'success': True, 'data': [serialize_row(r) for r in (rdvs or [])]})
 
