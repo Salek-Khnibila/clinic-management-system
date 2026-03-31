@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { AlertTriangle, ArrowRight, Calendar, Clock, RefreshCw, Stethoscope, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, Calendar, Clock, Phone, RefreshCw, Stethoscope, Users } from "lucide-react";
 import { C } from "../../constants/designTokens.js";
 import { useApp } from "../../contexts/AppContext.jsx";
 import { useMobile } from "../../hooks/useMobile.js";
@@ -182,44 +182,27 @@ export const SecretaireDashboard = ({ onNavigate }) => {
               size={isMobile ? 32 : 36}
             />
             <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontWeight: 700,
-                  fontSize: isMobile ? 12 : 13,
-                  color: C.navy,
-                }}
-              >
+              <div style={{ fontWeight: 700, fontSize: isMobile ? 12 : 13, color: C.navy }}>
                 {rdv.patient_prenom} {rdv.patient_nom}
               </div>
-              <div
-                style={{
-                  fontSize: isMobile ? 10 : 11,
-                  color: C.gray500,
-                  display: "flex",
-                  gap: isMobile ? 6 : 8,
-                  marginTop: 2,
-                }}
-              >
-                <span
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 3,
-                  }}
-                >
+              <div style={{
+                fontSize: isMobile ? 10 : 11, color: C.gray500,
+                display: "flex", gap: isMobile ? 6 : 8, marginTop: 2, flexWrap: "wrap",
+              }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <Stethoscope size={isMobile ? 9 : 10} />
                   Dr. {rdv.medecin_nom}
                 </span>
-                <span
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 3,
-                  }}
-                >
+                <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <Clock size={isMobile ? 9 : 10} />
                   {rdv.heure}
                 </span>
+                {rdv.patient_telephone && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                    <Phone size={isMobile ? 9 : 10} />
+                    {rdv.patient_telephone}
+                  </span>
+                )}
               </div>
             </div>
             <StatusBadge statut={rdv.statut} />

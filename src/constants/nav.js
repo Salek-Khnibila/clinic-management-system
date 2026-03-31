@@ -10,19 +10,17 @@ export const NAV = {
   ],
   medecin: [
     { id: "home",     label: "Accueil",  Icon: Home     },
-    { id: "planning", label: "Planning", Icon: Calendar },
+    { id: "planning", label: "Planning", Icon: Calendar }
     // Profil accessible via l'avatar en haut à droite
   ],
   secretaire: [
     { id: "home",       label: "Dashboard",  Icon: LayoutDashboard },
     { id: "planning",   label: "Planning",   Icon: ClipboardList   },
-    { id: "messagerie", label: "Messagerie", Icon: MessageSquare   },
+    { id: "messagerie", label: "Messagerie", Icon: MessageSquare   }
     // Profil accessible via l'avatar en haut à droite
   ],
   admin: [
     { id: "home",   label: "Nouveau compte", Icon: UserPlus },
-    { id: "users",  label: "Annuaire",       Icon: Users    },
-    { id: "profil", label: "Profil",         Icon: User     }, // ← seul l'admin garde l'entrée nav
-    // car son avatar (ShieldCheck) n'est pas un bouton de navigation vers le profil
+    { id: "users",  label: "Annuaire",       Icon: Users    }
   ],
 };

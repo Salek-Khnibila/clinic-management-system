@@ -65,22 +65,45 @@ export const DoctorCard = ({ med, onBook, onSelect }) => {
           </div>
           <div style={{ fontSize: 11, color: C.gray400 }}>
             {med.experience !== null && med.experience !== undefined && med.experience !== ""
-              ? `${med.experience}`
+              ? `${med.experience} ans`
               : <span style={{ fontStyle: "italic" }}>Expérience N/C</span>}
           </div>
         </div>
       </div>
 
-      {/* Étoiles — lecture seule */}
+      {/* Étoiles — support décimal */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 2 }}>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star key={star} size={16}
-              fill={star <= Math.round(note) ? "#F59E0B" : "none"}
-              color={star <= Math.round(note) ? "#F59E0B" : C.gray300}
-              strokeWidth={1.5}
-            />
-          ))}
+        <div style={{ display: "flex", gap: 3 }}>
+          {[1, 2, 3, 4, 5].map((s) => {
+            const fill = Math.min(1, Math.max(0, note - (s - 1)));
+            const id = `star-card-${med.id}-${s}`;
+            return (
+              <svg key={s} width={13} height={13} viewBox="0 0 24 24">
+                <defs>
+                  <clipPath id={id}>
+                    <rect x="0" y="0" width={24 * fill} height="24" />
+                  </clipPath>
+                </defs>
+                {/* Contour gris visible */}
+                <polygon
+                  points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+                  fill="#E8EDF4"
+                  stroke="#94A3B8"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                />
+                {/* Remplissage doré clipé */}
+                <polygon
+                  points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+                  fill="#F59E0B"
+                  stroke="#F59E0B"
+                  strokeWidth="1.5"
+                  strokeLinejoin="round"
+                  clipPath={`url(#${id})`}
+                />
+              </svg>
+            );
+          })}
         </div>
         <span style={{ fontSize: 12, color: C.gray500 }}>
           {note > 0

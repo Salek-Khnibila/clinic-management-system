@@ -26,8 +26,6 @@ CREATE TABLE IF NOT EXISTS users (
     ville          VARCHAR(100),
     tarif          VARCHAR(50),
     experience     VARCHAR(50),
-    note           DECIMAL(3,1) DEFAULT 0.0,
-    avis           INT DEFAULT 0,
     dispo          VARCHAR(50) DEFAULT 'Disponible',
     created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -61,6 +59,27 @@ CREATE TABLE IF NOT EXISTS appointments (
     INDEX idx_statut       (statut),
     INDEX idx_patient_date (patient_id, date),
     INDEX idx_medecin_date (medecin_id, date)
+);
+
+-- ============================================================
+-- TABLE : reviews
+-- ============================================================
+CREATE TABLE IF NOT EXISTS reviews (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id    INT         NOT NULL,
+    medecin_id    INT         NOT NULL,
+    note          TINYINT     NOT NULL CHECK (note BETWEEN 1 AND 5),
+    commentaire   TEXT        NOT NULL,
+    created_at    DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ 
+    -- Un patient ne peut évaluer un médecin qu'une seule fois
+    UNIQUE KEY uq_patient_medecin (patient_id, medecin_id),
+ 
+    FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (medecin_id) REFERENCES users(id) ON DELETE CASCADE,
+ 
+    INDEX idx_medecin (medecin_id),
+    INDEX idx_patient (patient_id)
 );
 
 -- ============================================================
@@ -184,18 +203,18 @@ WHERE NOT EXISTS (
 
 -- Médecins de démonstration
 -- Mot de passe pour tous : Demo@1234
-INSERT INTO users (prenom, nom, email, password, role, telephone, specialite, ville, tarif, experience, note, avis, dispo) VALUES
-('Dr', 'Smith',   'dr.smith@clinique.com',   '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', '0612345679', 'Cardiologie',   'Casablanca', '300 MAD', '10 ans', 4.5, 25, 'Lundi-Vendredi'),
-('Dr', 'Johnson', 'dr.johnson@clinique.com', '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'medecin', '0612345680', 'Dermatologie',  'Rabat',       '250 MAD', '8 ans',  4.2, 18, 'Mardi-Samedi');
+INSERT INTO users (prenom, nom, email, password, role, telephone, specialite, ville, tarif, experience, dispo) VALUES
+('Dr', 'Smith',   'dr.smith@clinique.com',   '$2a$12$uCS5IfYza3wN.Umq3wdlyuAaKeVDoQ6h.BWj5hnBruxoRXB3g2hW6', 'medecin', '0612345679', 'Cardiologie',   'Casablanca', '300 MAD', '10 ans', 'Lundi-Vendredi'),
+('Dr', 'Johnson', 'dr.johnson@clinique.com', '$2a$12$uCS5IfYza3wN.Umq3wdlyuAaKeVDoQ6h.BWj5hnBruxoRXB3g2hW6', 'medecin', '0612345680', 'Dermatologie',  'Rabat',       '250 MAD', '8 ans', 'Mardi-Samedi');
 
 -- Secrétaire de démonstration
 INSERT INTO users (prenom, nom, email, password, role, telephone) VALUES
-('Marie', 'Dupuis', 'secretaire@clinique.com', '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'secretaire', '0612345678');
+('Marie', 'Dupuis', 'secretaire@clinique.com', '$2a$12$uCS5IfYza3wN.Umq3wdlyuAaKeVDoQ6h.BWj5hnBruxoRXB3g2hW6', 'secretaire', '0612345678');
 
 -- Patients de démonstration
 INSERT INTO users (prenom, nom, email, password, role, telephone, groupe_sanguin) VALUES
-('Alice', 'Dupont', 'alice@email.com', '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'patient', '0612345681', 'AB+'),
-('Bob',   'Martin', 'bob@email.com',   '$2b$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'patient', '0612345682', 'O-');
+('Alice', 'Dupont', 'alice@email.com', '$2a$12$uCS5IfYza3wN.Umq3wdlyuAaKeVDoQ6h.BWj5hnBruxoRXB3g2hW6', 'patient', '0612345681', 'AB+'),
+('Bob',   'Martin', 'bob@email.com',   '$2a$12$uCS5IfYza3wN.Umq3wdlyuAaKeVDoQ6h.BWj5hnBruxoRXB3g2hW6', 'patient', '0612345682', 'O-');
 
 
 -- ============================================================

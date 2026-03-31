@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, ArrowRight, Shield, User } from "lucide-react";
+import { AlertTriangle, ArrowRight, Phone, Shield, User } from "lucide-react";
 import { C } from "../constants/designTokens.js";
 import { Logo } from "../components/ui/Logo.jsx";
 import { useAuth } from "../contexts/AuthContext.jsx";
@@ -8,17 +8,42 @@ import { useMobile } from "../hooks/useMobile.js";
 export const LoginPage = () => {
   const { login, register, loading } = useAuth();
   const isMobile = useMobile();
-  const [isLogin, setIsLogin] = useState(true);
-  const [nom, setNom] = useState("");
-  const [prenom, setPrenom] = useState("");
-  const [email, setEmail] = useState("");
-  const [pass, setPass] = useState("");
-  const [err, setErr] = useState("");
-  const [success, setSuccess] = useState("");
+  const [isLogin, setIsLogin]       = useState(true);
+  const [nom, setNom]               = useState("");
+  const [prenom, setPrenom]         = useState("");
+  const [email, setEmail]           = useState("");
+  const [pass, setPass]             = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+  const [telephone, setTelephone]   = useState("");
+  const [err, setErr]               = useState("");
+  const [success, setSuccess]       = useState("");
 
   const submit = async () => {
-    if (!email || !pass || (!isLogin && (!nom || !prenom))) {
-      setErr("Veuillez remplir tous les champs.");
+    // Champs obligatoires
+    if (!email || !pass) {
+      setErr("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+    if (!isLogin && (!nom || !prenom || !telephone)) {
+      setErr("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+
+    // Validation téléphone (10 chiffres)
+    if (!isLogin && !/^[0-9]{10}$/.test(telephone)) {
+      setErr("Le numéro de téléphone doit contenir exactement 10 chiffres.");
+      return;
+    }
+
+    // Confirmation mot de passe
+    if (!isLogin && pass !== confirmPass) {
+      setErr("Les mots de passe ne correspondent pas.");
+      return;
+    }
+
+    // Longueur mot de passe
+    if (!isLogin && pass.length < 8) {
+      setErr("Le mot de passe doit contenir au moins 8 caractères.");
       return;
     }
 
@@ -27,11 +52,9 @@ export const LoginPage = () => {
 
     if (isLogin) {
       const result = await login(email, pass);
-      if (!result.success) {
-        setErr(result.message || "Identifiants incorrects.");
-      }
+      if (!result.success) setErr(result.message || "Identifiants incorrects.");
     } else {
-      const result = await register({ email, password: pass, nom, prenom });
+      const result = await register({ email, password: pass, nom, prenom, telephone });
       if (result.success) {
         setSuccess("Compte créé ! Connexion en cours...");
         await login(email, pass);
@@ -41,7 +64,7 @@ export const LoginPage = () => {
     }
   };
 
-  const inputStyle = (isMobile) => ({
+  const inputStyle = {
     width: "100%",
     paddingLeft: 40,
     paddingRight: 16,
@@ -55,19 +78,27 @@ export const LoginPage = () => {
     fontFamily: "inherit",
     boxSizing: "border-box",
     transition: "border 0.2s",
-    // ✅ Grisé visuellement quand désactivé
     opacity: loading ? 0.6 : 1,
     cursor: loading ? "not-allowed" : "text",
-  });
+  };
 
-  const fields = [
-    ...(isLogin ? [] : [
-      ["Prénom", "text",     prenom, setPrenom, "Votre prénom", User],
-      ["Nom",    "text",     nom,    setNom,    "Votre nom",    User],
-    ]),
-    ["Email",         "email",    email, setEmail, "votre@email.ma", User],
-    ["Mot de passe",  "password", pass,  setPass,  "••••••••",       Shield],
+  // Champs login
+  const loginFields = [
+    ["Email",        "email",    email, setEmail, "votre@email.ma", User  ],
+    ["Mot de passe", "password", pass,  setPass,  "••••••••",       Shield],
   ];
+
+  // Champs inscription
+  const registerFields = [
+    ["Prénom",                   "text",     prenom,      setPrenom,      "Votre prénom",    User  ],
+    ["Nom",                      "text",     nom,         setNom,         "Votre nom",       User  ],
+    ["Email",                    "email",    email,       setEmail,       "votre@email.ma",  User  ],
+    ["Téléphone",                "tel",      telephone,   setTelephone,   "0612345678",      Phone ],
+    ["Mot de passe",             "password", pass,        setPass,        "••••••••",        Shield],
+    ["Confirmer le mot de passe","password", confirmPass, setConfirmPass, "••••••••",        Shield],
+  ];
+
+  const fields = isLogin ? loginFields : registerFields;
 
   return (
     <div style={{
@@ -76,7 +107,7 @@ export const LoginPage = () => {
       fontFamily: "'Inter',system-ui,sans-serif",
       background: C.white,
     }}>
-      {/* Panneau gauche — visible uniquement desktop */}
+      {/* Panneau gauche — desktop uniquement */}
       {!isMobile && (
         <div style={{
           flex: "0 0 40%",
@@ -145,7 +176,7 @@ export const LoginPage = () => {
             </p>
           </div>
 
-          {/* Champs du formulaire */}
+          {/* Champs */}
           {fields.map(([lbl, type, val, setter, ph, Ic]) => (
             <div key={lbl} style={{ marginBottom: 14 }}>
               <label style={{
@@ -164,47 +195,37 @@ export const LoginPage = () => {
                 <input
                   type={type}
                   value={val}
-                  onChange={(e) => { if (!loading) setter(e.target.value); }} // ✅ bloque onChange
-                  onKeyDown={(e) => { if (!loading && e.key === "Enter") submit(); }} // ✅ bloque onKeyDown
+                  onChange={(e) => { if (!loading) setter(e.target.value); }}
+                  onKeyDown={(e) => { if (!loading && e.key === "Enter") submit(); }}
                   placeholder={ph}
-                  disabled={loading} // ✅ désactive l'input nativement
-                  style={inputStyle(isMobile)}
+                  disabled={loading}
+                  style={inputStyle}
                   onFocus={(e) => { if (!loading) e.target.style.borderColor = C.teal; }}
-                  onBlur={(e) => (e.target.style.borderColor = C.border)}
+                  onBlur={(e)  => (e.target.style.borderColor = C.border)}
                 />
               </div>
             </div>
           ))}
 
-          {/* Message d'erreur */}
+          {/* Erreur */}
           {err && (
             <div style={{
-              background: C.redLt,
-              color: C.red,
-              borderRadius: 9,
-              padding: "11px 13px",
-              fontSize: 13,
-              fontWeight: 600,
-              marginBottom: 14,
-              display: "flex",
-              gap: 7,
-              alignItems: "center",
+              background: C.redLt, color: C.red,
+              borderRadius: 9, padding: "11px 13px",
+              fontSize: 13, fontWeight: 600,
+              marginBottom: 14, display: "flex", gap: 7, alignItems: "center",
             }}>
               <AlertTriangle size={14} />
               {err}
             </div>
           )}
 
-          {/* Message de succès */}
+          {/* Succès */}
           {success && (
             <div style={{
-              background: C.tealLt,
-              color: C.tealDk,
-              borderRadius: 9,
-              padding: "11px 13px",
-              fontSize: 13,
-              fontWeight: 600,
-              marginBottom: 14,
+              background: C.tealLt, color: C.tealDk,
+              borderRadius: 9, padding: "11px 13px",
+              fontSize: 13, fontWeight: 600, marginBottom: 14,
             }}>
               {success}
             </div>
@@ -218,7 +239,7 @@ export const LoginPage = () => {
               width: "100%",
               padding: isMobile ? "16px" : "14px",
               borderRadius: 12,
-              background: loading ? C.gray300 : C.gradBtn,
+              background: loading ? C.gray400 : C.gradBtn,
               color: "#fff",
               fontWeight: 800,
               fontSize: 16,
@@ -238,20 +259,24 @@ export const LoginPage = () => {
             }
           </button>
 
-          {/* Toggle login/register */}
+          {/* Toggle login / register */}
           <div style={{ marginTop: 24, textAlign: "center", fontSize: 13, color: C.gray500 }}>
             {isLogin ? "Nouveau patient ?" : "Vous avez déjà un compte ?"}
             <button
-              onClick={() => { if (!loading) { setIsLogin(!isLogin); setErr(""); setSuccess(""); } }} // ✅ bloque le toggle
+              onClick={() => {
+                if (!loading) {
+                  setIsLogin(!isLogin);
+                  setErr(""); setSuccess("");
+                  setNom(""); setPrenom("");
+                  setTelephone(""); setConfirmPass("");
+                }
+              }}
               disabled={loading}
               style={{
-                background: "none",
-                border: "none",
-                color: C.tealDk,
-                fontWeight: 700,
+                background: "none", border: "none",
+                color: C.tealDk, fontWeight: 700,
                 cursor: loading ? "not-allowed" : "pointer",
-                marginLeft: 8,
-                fontFamily: "inherit",
+                marginLeft: 8, fontFamily: "inherit",
                 opacity: loading ? 0.5 : 1,
               }}
             >
