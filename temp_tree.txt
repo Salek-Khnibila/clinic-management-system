@@ -47,13 +47,8 @@
       reviews.py
       __init__.py
   database/
-    ajoute_admin.sql
-    fix_enum.sql
     gestion_clinique.db
     init_database.sql
-    sample-data.sql
-    schema.sql
-    update_database.sql
   dist/
     index.html
     assets/
